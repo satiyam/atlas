@@ -1,0 +1,38 @@
+{
+  "name": "atlas",
+  "version": "0.4.0",
+  "description": "Consent-first, filesystem-native, multi-modal workspace intelligence assistant",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@kenjiuno/msgreader": "latest",
+    "dotenv": "latest",
+    "fluent-ffmpeg": "latest",
+    "jszip": "latest",
+    "mammoth": "latest",
+    "nodemailer": "latest",
+    "openai": "latest",
+    "pdf-parse": "latest",
+    "uuid": "latest",
+    "xlsx": "latest"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "UNLICENSED"
+}

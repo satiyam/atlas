@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "genspark": {
+      "type": "http",
+      "url": "https://api.genspark.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GENSPARK_API_KEY}",
+        "Content-Type": "application/json"
+      },
+      "description": "Genspark external research API for industry benchmarking and web search augmentation"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "ingestion_path": "",
+  "supported_extensions": [
+    ".docx", ".pdf", ".txt", ".pptx", ".xlsx",
+    ".eml", ".msg", ".vtt", ".srt",
+    ".mp3", ".m4a", ".wav", ".mp4",
+    ".png", ".jpg", ".jpeg",
+    ".csv", ".md"
+  ],
+  "exclude_folders": [
+    "node_modules",
+    ".git",
+    "_archive",
+    ".tmp",
+    "Thumbs.db"
+  ],
+  "min_file_size_bytes": 100,
+  "max_file_size_bytes": 524288000,
+  "whisper_model": "gpt-4o-mini-transcribe",
+  "whisper_max_size_mb": 25,
+  "audio_concurrency_limit": 3,
+  "last_cursor": "1970-01-01T00:00:00.000Z",
+  "configured_at": null
+}
