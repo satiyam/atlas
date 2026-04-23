@@ -1,561 +1,694 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
-const THEME = {
+const COLORS = {
   bg: '#0f1117',
   panel: '#1a1d27',
-  panelBorder: '#2a2d3a',
   accent: '#7c6af7',
-  accentHover: '#9d8fff',
+  internal: '#3b82f6',
+  external: '#10b981',
   text: '#e2e8f0',
-  textMuted: '#8892a4',
-  internalBadge: '#3b82f6',
-  externalBadge: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  success: '#22c55e',
+  muted: '#64748b',
+  border: '#2d3748',
+  red: '#ef4444',
+  yellow: '#f59e0b',
 }
 
-const SYNTHESIS_TYPES = [
-  { value: 'podcast', label: 'Podcast Script' },
-  { value: 'brief', label: 'Project Brief' },
-  { value: 'handover', label: 'Handover Document' },
-  { value: 'decision_log', label: 'Decision Log' },
-  { value: 'benchmark', label: 'Benchmark Report' },
-  { value: 'onboarding', label: 'Onboarding Guide' },
-]
+const API_BASE = typeof window !== 'undefined' && window.ATLAS_API_BASE
+  ? window.ATLAS_API_BASE
+  : ''
 
-function Badge({ type }) {
-  const isInternal = type === 'internal'
-  return (
-    <span style={{
-      background: isInternal ? THEME.internalBadge : THEME.externalBadge,
-      color: '#fff',
-      fontSize: 11,
-      padding: '2px 8px',
-      borderRadius: 4,
-      fontWeight: 600,
-      letterSpacing: 0.5,
-    }}>
-      {isInternal ? 'INTERNAL' : 'EXTERNAL'}
-    </span>
-  )
+async function apiCall(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: options.method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => response.statusText)
+    throw new Error(`${response.status}: ${text}`)
+  }
+  return response.json()
 }
 
-function ProgressBar({ progress, label }) {
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12, color: THEME.textMuted }}>
-        <span>{label}</span>
-        <span>{progress}%</span>
-      </div>
-      <div style={{ height: 8, background: '#2a2d3a', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${progress}%`, background: THEME.accent, borderRadius: 4, transition: 'width 0.3s ease' }} />
-      </div>
-    </div>
-  )
+const PANEL_STYLE = {
+  background: COLORS.panel,
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 12,
+  padding: 20,
+  boxSizing: 'border-box',
 }
 
-function FolderWidget({ onFolderSelected, ingestionState, onDryRun, onStartIngestion, onPause, onCancel, dryRunReport }) {
-  const [folderPath, setFolderPath] = useState('')
-  const [scanResult, setScanResult] = useState(null)
-  const [scanning, setScanning] = useState(false)
-  const folderInputRef = useRef(null)
+function FolderWidget({ folderPath, setFolderPath, scanResults, onScan, onDryRun, onStartIngestion, ingesting, progress }) {
+  const folderRef = useRef(null)
 
-  const handleFolderSelect = useCallback((e) => {
+  const handleFolderSelect = (e) => {
     const files = Array.from(e.target.files)
     if (files.length === 0) return
-    const firstPath = files[0].webkitRelativePath || files[0].name
-    const rootFolder = firstPath.split('/')[0]
-    setFolderPath(rootFolder)
-    setScanResult({ total: files.length, supported: files.filter(f => f.size > 100).length, totalSize: files.reduce((s, f) => s + f.size, 0) })
-    if (onFolderSelected) onFolderSelected(files, rootFolder)
-  }, [onFolderSelected])
+    const firstRel = files[0].webkitRelativePath || files[0].name
+    setFolderPath(firstRel.split('/')[0])
+  }
 
   const formatBytes = (bytes) => {
-    if (bytes > 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
-    if (bytes > 1e6) return `${(bytes / 1e6).toFixed(0)} MB`
+    if (!bytes) return '0 B'
+    if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
+    if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`
     return `${(bytes / 1e3).toFixed(0)} KB`
   }
 
   return (
-    <div style={{ background: THEME.panel, border: `1px solid ${THEME.panelBorder}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+    <div style={{ ...PANEL_STYLE, marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 20 }}>📁</span>
-        <h2 style={{ margin: 0, color: THEME.text, fontSize: 16, fontWeight: 700 }}>Knowledge Source</h2>
+        <span style={{ fontSize: 22 }}>📁</span>
+        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 18, fontWeight: 700 }}>Knowledge Source</h2>
       </div>
 
-      {!scanResult ? (
-        <div>
-          <p style={{ color: THEME.textMuted, fontSize: 13, marginBottom: 12 }}>Point Atlas at a folder to begin</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={folderPath}
-              onChange={e => setFolderPath(e.target.value)}
-              placeholder="Enter folder path or browse..."
-              style={{ flex: 1, background: '#0f1117', border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: '8px 12px', color: THEME.text, fontSize: 13, outline: 'none' }}
-            />
-            <button
-              onClick={() => folderInputRef.current?.click()}
-              style={{ background: THEME.accent, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}
-            >
-              Browse
-            </button>
-          </div>
-          <input
-            type="file"
-            webkitdirectory="true"
-            directory="true"
-            multiple
-            style={{ display: 'none' }}
-            ref={folderInputRef}
-            onChange={handleFolderSelect}
-          />
-          <p style={{ color: THEME.textMuted, fontSize: 12, marginTop: 10 }}>
-            💡 Tip: Point at your OneDrive sync folder for live Microsoft 365 document access
-          </p>
-        </div>
-      ) : ingestionState?.status === 'running' ? (
-        <div>
-          <p style={{ color: THEME.text, fontSize: 13, marginBottom: 4 }}>{folderPath}</p>
-          <p style={{ color: THEME.accent, fontSize: 13, marginBottom: 12 }}>▶ Ingesting... {ingestionState.processed} / {ingestionState.total} files</p>
-          <ProgressBar progress={Math.round((ingestionState.processed / ingestionState.total) * 100)} label={`Currently: ${ingestionState.currentFile || 'processing...'}`} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button onClick={onPause} style={{ background: '#2a2d3a', color: THEME.text, border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}>Pause</button>
-            <button onClick={onCancel} style={{ background: THEME.error, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}>Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <p style={{ color: THEME.text, fontSize: 13, margin: 0 }}>{folderPath}</p>
-            <button onClick={() => { setScanResult(null); setFolderPath('') }} style={{ background: 'transparent', color: THEME.accent, border: `1px solid ${THEME.accent}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>Change</button>
-          </div>
-          <div style={{ color: THEME.textMuted, fontSize: 13, lineHeight: '1.8' }}>
-            <div>● {scanResult.total.toLocaleString()} files found</div>
-            <div>● {scanResult.supported.toLocaleString()} supported · {(scanResult.total - scanResult.supported)} skipped</div>
-            <div>● {formatBytes(scanResult.totalSize)} total</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button
-              onClick={() => onDryRun && onDryRun()}
-              style={{ background: 'transparent', color: THEME.accent, border: `1px solid ${THEME.accent}`, borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-            >
-              🔍 Dry Run
-            </button>
-            <button
-              onClick={() => onStartIngestion && onStartIngestion()}
-              style={{ background: THEME.accent, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
-            >
-              ▶ Start Ingestion
-            </button>
-          </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <input
+          type="text"
+          value={folderPath}
+          onChange={(e) => setFolderPath(e.target.value)}
+          placeholder="C:\Users\you\OneDrive - Your Org\   (paste a path or browse)"
+          style={{
+            flex: 1,
+            background: COLORS.bg,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 6,
+            padding: '10px 14px',
+            color: COLORS.text,
+            fontSize: 13,
+            outline: 'none',
+          }}
+        />
+        <button
+          onClick={() => folderRef.current?.click()}
+          style={{
+            background: 'transparent',
+            color: COLORS.accent,
+            border: `1px solid ${COLORS.accent}`,
+            borderRadius: 6,
+            padding: '10px 18px',
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          Browse
+        </button>
+        <button
+          onClick={onScan}
+          disabled={!folderPath || ingesting}
+          style={{
+            background: COLORS.accent,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            padding: '10px 18px',
+            cursor: (!folderPath || ingesting) ? 'not-allowed' : 'pointer',
+            fontWeight: 700,
+            fontSize: 13,
+            opacity: (!folderPath || ingesting) ? 0.5 : 1,
+          }}
+        >
+          Scan
+        </button>
+      </div>
+
+      <input
+        type="file"
+        webkitdirectory=""
+        directory=""
+        multiple
+        style={{ display: 'none' }}
+        ref={folderRef}
+        onChange={handleFolderSelect}
+      />
+
+      {scanResults && !ingesting && (
+        <div style={{ color: COLORS.muted, fontSize: 13, lineHeight: 1.8, marginBottom: 12 }}>
+          <div>● {scanResults.summary?.total_found ?? 0} files found</div>
+          <div>● {scanResults.summary?.total_supported ?? 0} supported · {scanResults.summary?.total_skipped ?? 0} skipped</div>
+          <div>● {formatBytes(scanResults.summary?.total_size_bytes)} total</div>
+          {scanResults.summary?.total_flagged > 0 && (
+            <div style={{ color: COLORS.yellow }}>⚠ {scanResults.summary.total_flagged} sensitive filenames require review</div>
+          )}
         </div>
       )}
+
+      {ingesting && progress && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ color: COLORS.accent, fontSize: 13, marginBottom: 4 }}>
+            ▶ Ingesting... {progress.current} / {progress.total}
+          </div>
+          <div style={{ height: 8, background: '#2a2d3a', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`,
+              background: COLORS.accent,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+          {progress.currentFile && (
+            <div style={{ color: COLORS.muted, fontSize: 12, marginTop: 4 }}>
+              Currently: {progress.currentFile}
+            </div>
+          )}
+        </div>
+      )}
+
+      {scanResults && !ingesting && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            onClick={onDryRun}
+            style={{
+              background: 'transparent',
+              color: COLORS.accent,
+              border: `1px solid ${COLORS.accent}`,
+              borderRadius: 6,
+              padding: '10px 18px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            🔍 Dry Run
+          </button>
+          <button
+            onClick={onStartIngestion}
+            style={{
+              background: COLORS.accent,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '10px 24px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: 13,
+            }}
+          >
+            ▶ Start Ingestion
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, fontSize: 12, color: COLORS.muted, borderTop: `1px dashed ${COLORS.border}`, paddingTop: 10 }}>
+        💡 Tip: Point at your OneDrive sync folder for live Microsoft 365 document access
+      </div>
     </div>
   )
 }
 
 function DryRunModal({ report, onClose, onStartIngestion }) {
   const [decisions, setDecisions] = useState(
-    report.flagged.reduce((acc, f) => ({ ...acc, [f.path]: 'skip' }), {})
+    (report.flagged_files || []).reduce((acc, f) => ({ ...acc, [f.path]: 'skip' }), {})
   )
 
-  const toggleDecision = (filePath) => {
-    setDecisions(prev => ({ ...prev, [filePath]: prev[filePath] === 'skip' ? 'allow' : 'skip' }))
-  }
+  const toggle = (path) => setDecisions(prev => ({
+    ...prev,
+    [path]: prev[path] === 'skip' ? 'allow' : 'skip',
+  }))
 
-  const formatTime = (seconds) => {
-    if (seconds < 60) return `~${seconds}s`
-    const h = Math.floor(seconds / 3600)
-    const m = Math.floor((seconds % 3600) / 60)
-    return h > 0 ? `~${h}hr ${m}min` : `~${m}min`
+  const fmt = (b) => {
+    if (!b) return '0 B'
+    if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`
+    return `${(b / 1e3).toFixed(0)} KB`
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-      <div style={{ background: THEME.panel, border: `1px solid ${THEME.panelBorder}`, borderRadius: 12, width: '100%', maxWidth: 780, maxHeight: '90vh', overflow: 'auto', padding: 24 }}>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 20,
+    }}>
+      <div style={{
+        ...PANEL_STYLE, width: '100%', maxWidth: 820, maxHeight: '90vh', overflow: 'auto',
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: THEME.text, margin: 0, fontSize: 18 }}>🔍 Atlas Dry Run Report</h2>
-          <button onClick={onClose} style={{ background: 'transparent', color: THEME.textMuted, border: 'none', cursor: 'pointer', fontSize: 18 }}>✕</button>
+          <h2 style={{ color: COLORS.text, margin: 0, fontSize: 20 }}>🔍 Atlas Dry Run Report</h2>
+          <button onClick={onClose} style={{ background: 'transparent', color: COLORS.muted, border: 'none', fontSize: 22, cursor: 'pointer' }}>✕</button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-          <div style={{ background: '#0f1117', borderRadius: 8, padding: 16 }}>
-            <h3 style={{ color: THEME.textMuted, fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginTop: 0 }}>Files Discovered</h3>
-            {Object.entries(report.file_breakdown || {}).map(([ext, data]) => (
-              <div key={ext} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: THEME.text, marginBottom: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          <div style={{ background: COLORS.bg, borderRadius: 8, padding: 16 }}>
+            <h3 style={{ color: COLORS.muted, fontSize: 11, textTransform: 'uppercase', marginTop: 0, letterSpacing: 1 }}>Files Discovered</h3>
+            {Object.entries(report.file_breakdown || {}).sort().map(([ext, info]) => (
+              <div key={ext} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.text, marginBottom: 4 }}>
                 <span>{ext}</span>
-                <span style={{ color: THEME.textMuted }}>{data.count} files · {data.total_size_mb}MB</span>
+                <span style={{ color: COLORS.muted }}>{info.count} · {info.total_size_mb} MB</span>
               </div>
             ))}
           </div>
-          <div style={{ background: '#0f1117', borderRadius: 8, padding: 16 }}>
-            <h3 style={{ color: THEME.textMuted, fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginTop: 0 }}>Time &amp; Cost Estimates</h3>
-            <div style={{ fontSize: 13, color: THEME.text, lineHeight: '1.8' }}>
-              <div>Parsing: {formatTime(report.time_estimate?.parsing_seconds)}</div>
-              <div>Audio transcribe: {formatTime(report.time_estimate?.audio_transcription_seconds)}</div>
-              <div>PII redaction: {formatTime(report.time_estimate?.pii_redaction_seconds)}</div>
-              <div>Entity extract: {formatTime(report.time_estimate?.entity_extraction_seconds)}</div>
-              <div style={{ marginTop: 8, color: THEME.accent, fontWeight: 700 }}>⏱ Total: {report.time_estimate?.total_human}</div>
-              <div style={{ marginTop: 8 }}>Audio cost: <span style={{ color: THEME.warning }}>${report.cost_estimate?.total_usd?.toFixed(2) || '0.00'}</span></div>
+          <div style={{ background: COLORS.bg, borderRadius: 8, padding: 16 }}>
+            <h3 style={{ color: COLORS.muted, fontSize: 11, textTransform: 'uppercase', marginTop: 0, letterSpacing: 1 }}>Estimates</h3>
+            <div style={{ color: COLORS.text, fontSize: 14, marginBottom: 8 }}>
+              <strong style={{ color: COLORS.accent }}>⏱ {report.time_estimate?.human || '—'}</strong>
+            </div>
+            <div style={{ color: COLORS.yellow, fontSize: 14, marginBottom: 8 }}>
+              <strong>💵 ${(report.cost_estimate?.total_usd || 0).toFixed(4)}</strong>
+              <span style={{ color: COLORS.muted, fontSize: 12 }}> Whisper API</span>
+            </div>
+            <div style={{ color: COLORS.text, fontSize: 13 }}>
+              Graph: {report.graph_estimate?.min_nodes}–{report.graph_estimate?.max_nodes} nodes
             </div>
           </div>
         </div>
 
-        {report.flagged?.length > 0 && (
-          <div style={{ background: '#0f1117', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-            <h3 style={{ color: THEME.warning, margin: '0 0 12px', fontSize: 14 }}>⚠️ Files Requiring Your Decision ({report.flagged.length} files)</h3>
-            <p style={{ color: THEME.textMuted, fontSize: 13, marginBottom: 12 }}>Filename suggests sensitive content. Review before ingesting.</p>
-            {report.flagged.map(file => (
-              <div key={file.path} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${THEME.panelBorder}` }}>
-                <div>
-                  <span style={{ color: THEME.text, fontSize: 13 }}>{file.filename}</span>
-                  <span style={{ color: THEME.textMuted, fontSize: 11, marginLeft: 8 }}>{(file.size_bytes / 1024).toFixed(0)}KB</span>
+        {report.flagged_files?.length > 0 && (
+          <div style={{ background: COLORS.bg, borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ color: COLORS.yellow, fontSize: 14, margin: '0 0 8px' }}>
+              ⚠ Sensitive Files ({report.flagged_files.length})
+            </h3>
+            <div style={{ color: COLORS.muted, fontSize: 12, marginBottom: 10 }}>
+              Files you Allow still pass PII Redactor. RED content is blocked automatically.
+            </div>
+            {report.flagged_files.map(f => (
+              <div key={f.path} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '6px 0', borderBottom: `1px solid ${COLORS.border}`,
+              }}>
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: COLORS.text }}>{f.filename}</span>
+                  <span style={{ color: COLORS.muted, marginLeft: 8, fontSize: 11 }}>{fmt(f.size_bytes)}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <label style={{ cursor: 'pointer', fontSize: 12, color: decisions[file.path] === 'skip' ? THEME.error : THEME.textMuted }}>
-                    <input type="radio" name={file.path} checked={decisions[file.path] === 'skip'} onChange={() => toggleDecision(file.path)} style={{ marginRight: 4 }} />
-                    Skip
+                  <label style={{ fontSize: 12, cursor: 'pointer', color: decisions[f.path] === 'skip' ? COLORS.red : COLORS.muted }}>
+                    <input type="radio" name={f.path} checked={decisions[f.path] === 'skip'} onChange={() => toggle(f.path)} /> Skip
                   </label>
-                  <label style={{ cursor: 'pointer', fontSize: 12, color: decisions[file.path] === 'allow' ? THEME.success : THEME.textMuted }}>
-                    <input type="radio" name={file.path} checked={decisions[file.path] === 'allow'} onChange={() => toggleDecision(file.path)} style={{ marginRight: 4 }} />
-                    Allow
+                  <label style={{ fontSize: 12, cursor: 'pointer', color: decisions[f.path] === 'allow' ? COLORS.external : COLORS.muted }}>
+                    <input type="radio" name={f.path} checked={decisions[f.path] === 'allow'} onChange={() => toggle(f.path)} /> Allow
                   </label>
                 </div>
               </div>
             ))}
-            <p style={{ color: THEME.textMuted, fontSize: 11, marginTop: 8 }}>Files you Allow will still pass through PII Redactor. Content classified RED will be blocked automatically.</p>
           </div>
         )}
 
-        <div style={{ background: '#0f1117', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-          <h3 style={{ color: THEME.textMuted, fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginTop: 0 }}>Estimated Knowledge Graph</h3>
-          <div style={{ fontSize: 13, color: THEME.text, lineHeight: '1.8' }}>
-            <div>~{report.graph_size_estimate?.min_nodes?.toLocaleString()}–{report.graph_size_estimate?.max_nodes?.toLocaleString()} entity nodes</div>
-            <div>~{report.graph_size_estimate?.min_edges?.toLocaleString()}–{report.graph_size_estimate?.max_edges?.toLocaleString()} relationships</div>
-            <div>~{report.graph_size_estimate?.estimated_mb} MB graph store</div>
-          </div>
-        </div>
-
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button onClick={onClose} style={{ background: 'transparent', color: THEME.textMuted, border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}>Cancel</button>
-          <button
-            onClick={() => onStartIngestion(decisions)}
-            style={{ background: THEME.accent, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer', fontWeight: 700 }}
-          >
-            Start Ingestion →
-          </button>
+          <button onClick={onClose} style={{
+            background: 'transparent', color: COLORS.muted,
+            border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            padding: '10px 18px', cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={() => onStartIngestion(decisions)} style={{
+            background: COLORS.accent, color: '#fff', border: 'none',
+            borderRadius: 6, padding: '10px 24px', cursor: 'pointer', fontWeight: 700,
+          }}>Start Ingestion →</button>
         </div>
       </div>
     </div>
   )
 }
 
-function ChatPanel({ onSend }) {
-  const [query, setQuery] = useState('')
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading] = useState(false)
+function ResponseDisplay({ content }) {
+  if (!content) return null
 
-  const handleSend = async () => {
-    if (!query.trim() || loading) return
-    const userMessage = query.trim()
-    setQuery('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setLoading(true)
-
-    try {
-      const response = onSend ? await onSend(userMessage) : { text: 'Atlas is ready. Configure ingestion path and ingest documents to begin.', sources: [], external: null }
-      setMessages(prev => [...prev, { role: 'atlas', content: response.text, sources: response.sources, external: response.external }])
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'atlas', content: `Error: ${err.message}`, sources: [], external: null }])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const parseResponse = (content) => {
-    if (!content) return { answer: '', internal: [], external: [], transparency: '' }
-    const parts = content.split(/─{3}/)
-    return {
-      answer: parts[0]?.trim() || '',
-      internal: parts[1] || '',
-      external: parts[2] || '',
-      transparency: parts[3] || '',
+  const parts = content.split(/---\s*([^-]+?)\s*---/g)
+  const blocks = []
+  for (let i = 0; i < parts.length; i++) {
+    if (i === 0) {
+      if (parts[i].trim()) blocks.push({ title: null, body: parts[i] })
+    } else if (i % 2 === 1) {
+      blocks.push({ title: parts[i].trim(), body: parts[i + 1] || '' })
+      i++
     }
   }
 
   return (
-    <div style={{ background: THEME.panel, border: `1px solid ${THEME.panelBorder}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 400 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 18 }}>💬</span>
-        <h2 style={{ margin: 0, color: THEME.text, fontSize: 16, fontWeight: 700 }}>Chat</h2>
-      </div>
-
-      <div style={{ flex: 1, overflow: 'auto', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {messages.length === 0 && (
-          <p style={{ color: THEME.textMuted, fontSize: 13, textAlign: 'center', marginTop: 40 }}>Ask Atlas anything about your knowledge base...</p>
-        )}
-        {messages.map((msg, i) => {
-          if (msg.role === 'user') {
-            return (
-              <div key={i} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ background: THEME.accent, color: '#fff', padding: '10px 14px', borderRadius: '12px 12px 4px 12px', fontSize: 13, maxWidth: '80%' }}>
-                  {msg.content}
-                </div>
-              </div>
-            )
-          }
-          const parsed = parseResponse(msg.content)
+    <div>
+      {blocks.map((block, idx) => {
+        if (!block.title) {
           return (
-            <div key={i} style={{ maxWidth: '100%' }}>
-              <p style={{ color: THEME.text, fontSize: 13, lineHeight: 1.6, margin: '0 0 12px' }}>{parsed.answer}</p>
-              {parsed.internal && (
-                <div style={{ background: '#0f1117', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Badge type="internal" />
-                    <span style={{ color: THEME.textMuted, fontSize: 11 }}>Internal Sources</span>
-                  </div>
-                  <pre style={{ color: THEME.textMuted, fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}>{parsed.internal.replace('Internal Sources', '').trim()}</pre>
-                </div>
-              )}
-              {parsed.external && (
-                <div style={{ background: '#0f1117', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Badge type="external" />
-                    <span style={{ color: THEME.textMuted, fontSize: 11 }}>External Research</span>
-                  </div>
-                  <pre style={{ color: THEME.textMuted, fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}>{parsed.external.replace('External Research (via Genspark)', '').trim()}</pre>
-                </div>
-              )}
-              {parsed.transparency && (
-                <div style={{ borderLeft: `2px solid ${THEME.panelBorder}`, paddingLeft: 10 }}>
-                  <pre style={{ color: THEME.textMuted, fontSize: 10, whiteSpace: 'pre-wrap', margin: 0 }}>{parsed.transparency.replace('Knowledge Base Transparency', '').trim()}</pre>
-                </div>
-              )}
+            <div key={idx} style={{ color: COLORS.text, fontSize: 13, lineHeight: 1.6, marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+              {block.body.trim()}
             </div>
           )
-        })}
-        {loading && <p style={{ color: THEME.accent, fontSize: 13 }}>Atlas is thinking...</p>}
+        }
+        const isInternal = /internal/i.test(block.title)
+        const isExternal = /external/i.test(block.title)
+        const isTransparency = /transparency/i.test(block.title)
+        const borderColor = isInternal ? COLORS.internal : isExternal ? COLORS.external : COLORS.muted
+
+        if (isTransparency) {
+          return (
+            <details key={idx} style={{ marginBottom: 8, paddingLeft: 10, borderLeft: `3px solid ${borderColor}` }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12, color: COLORS.muted }}>
+                {block.title}
+              </summary>
+              <pre style={{ color: COLORS.muted, fontSize: 11, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{block.body.trim()}</pre>
+            </details>
+          )
+        }
+
+        return (
+          <div key={idx} style={{ marginBottom: 10, paddingLeft: 10, borderLeft: `3px solid ${borderColor}` }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 1 }}>
+              {block.title}
+            </div>
+            <pre style={{ color: COLORS.text, fontSize: 12, margin: 0, whiteSpace: 'pre-wrap' }}>{block.body.trim()}</pre>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ChatPanel() {
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [thinking, setThinking] = useState(false)
+  const scrollRef = useRef(null)
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [messages, thinking])
+
+  const send = async () => {
+    const trimmed = input.trim()
+    if (!trimmed || thinking) return
+    setMessages(prev => [...prev, { role: 'user', content: trimmed }])
+    setInput('')
+    setThinking(true)
+    try {
+      const { response } = await apiCall('/api/query', { method: 'POST', body: { query: trimmed } })
+      setMessages(prev => [...prev, { role: 'atlas', content: response }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'atlas', content: `Error contacting Atlas: ${err.message}` }])
+    } finally {
+      setThinking(false)
+    }
+  }
+
+  return (
+    <div style={{ ...PANEL_STYLE, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 20 }}>💬</span>
+        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 700 }}>Chat</h2>
+      </div>
+
+      <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', marginBottom: 12 }}>
+        {messages.length === 0 && (
+          <div style={{ color: COLORS.muted, fontSize: 13, textAlign: 'center', padding: 32 }}>
+            Ask Atlas anything about your knowledge base.
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              maxWidth: msg.role === 'user' ? '75%' : '95%',
+              background: msg.role === 'user' ? COLORS.accent : COLORS.bg,
+              color: msg.role === 'user' ? '#fff' : COLORS.text,
+              padding: '10px 14px',
+              borderRadius: msg.role === 'user' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+              fontSize: 13,
+              lineHeight: 1.6,
+              whiteSpace: msg.role === 'user' ? 'pre-wrap' : 'normal',
+            }}>
+              {msg.role === 'user' ? msg.content : <ResponseDisplay content={msg.content} />}
+            </div>
+          </div>
+        ))}
+        {thinking && (
+          <div style={{ color: COLORS.accent, fontSize: 13, padding: '8px 0' }}>
+            <span style={{ animation: 'pulse 1.2s infinite' }}>●</span> Atlas is thinking...
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
         <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) send() }}
           placeholder="Ask Atlas..."
-          style={{ flex: 1, background: '#0f1117', border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: '10px 14px', color: THEME.text, fontSize: 13, outline: 'none' }}
+          disabled={thinking}
+          style={{
+            flex: 1, background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+            borderRadius: 6, padding: '10px 14px', color: COLORS.text, fontSize: 13, outline: 'none',
+          }}
         />
-        <button
-          onClick={handleSend}
-          disabled={loading || !query.trim()}
-          style={{ background: THEME.accent, color: '#fff', border: 'none', borderRadius: 6, padding: '10px 16px', cursor: loading ? 'wait' : 'pointer', fontWeight: 700, opacity: loading || !query.trim() ? 0.6 : 1 }}
-        >
-          Send
-        </button>
+        <button onClick={send} disabled={thinking || !input.trim()} style={{
+          background: COLORS.accent, color: '#fff', border: 'none',
+          borderRadius: 6, padding: '10px 20px', fontWeight: 700, fontSize: 13,
+          cursor: (thinking || !input.trim()) ? 'not-allowed' : 'pointer',
+          opacity: (thinking || !input.trim()) ? 0.6 : 1,
+        }}>Send</button>
       </div>
     </div>
   )
 }
 
-function SynthesisPanel({ onGenerate }) {
-  const [synthType, setSynthType] = useState('podcast')
+const SYNTHESIS_OPTIONS = [
+  { value: 'podcast', label: 'Podcast Script', placeholder: 'Topic (e.g. Project Phoenix)' },
+  { value: 'brief', label: 'Project Brief', placeholder: 'Project name (e.g. Project Phoenix)' },
+  { value: 'handover', label: 'Handover Document', placeholder: 'Person name (e.g. Sarah Chen)' },
+  { value: 'benchmark', label: 'Benchmark Report', placeholder: 'Topic (e.g. Vendor selection)' },
+]
+
+function SynthesisPanel() {
+  const [type, setType] = useState('podcast')
   const [topic, setTopic] = useState('')
   const [output, setOutput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
-  const handleGenerate = async () => {
-    if (!topic.trim() || loading) return
-    setLoading(true)
+  const current = SYNTHESIS_OPTIONS.find(o => o.value === type)
+
+  const generate = async () => {
+    if (!topic.trim() || generating) return
+    setGenerating(true)
     setOutput('')
     try {
-      const result = onGenerate ? await onGenerate(synthType, topic.trim()) : { content: `[Demo] Generated ${synthType} for: ${topic}` }
-      setOutput(result.content || result.script || result.brief || result.document || result.report || '')
+      const result = await apiCall('/api/synthesise', { method: 'POST', body: { type, topic: topic.trim() } })
+      setOutput(result.script || result.brief || result.document || result.report || JSON.stringify(result, null, 2))
     } catch (err) {
       setOutput(`Error: ${err.message}`)
     } finally {
-      setLoading(false)
+      setGenerating(false)
     }
   }
 
-  const handleDownload = () => {
+  const download = () => {
     const blob = new Blob([output], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `atlas-${synthType}-${topic.replace(/\s+/g, '-').toLowerCase()}.md`
+    a.download = `atlas-${type}-${topic.replace(/\s+/g, '-').toLowerCase()}.md`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   return (
-    <div style={{ background: THEME.panel, border: `1px solid ${THEME.panelBorder}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 18 }}>✨</span>
-        <h2 style={{ margin: 0, color: THEME.text, fontSize: 16, fontWeight: 700 }}>Synthesis</h2>
+    <div style={{ ...PANEL_STYLE, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 20 }}>✨</span>
+        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 700 }}>Synthesis</h2>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <select
-          value={synthType}
-          onChange={e => setSynthType(e.target.value)}
-          style={{ background: '#0f1117', border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: '8px 12px', color: THEME.text, fontSize: 13, cursor: 'pointer' }}
-        >
-          {SYNTHESIS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-      </div>
+      <select value={type} onChange={e => setType(e.target.value)} style={{
+        width: '100%', background: COLORS.bg, color: COLORS.text,
+        border: `1px solid ${COLORS.border}`, borderRadius: 6,
+        padding: '8px 12px', fontSize: 13, marginBottom: 8,
+      }}>
+        {SYNTHESIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <input
           value={topic}
           onChange={e => setTopic(e.target.value)}
-          placeholder="Enter topic, project name, or person..."
-          style={{ flex: 1, background: '#0f1117', border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: '8px 12px', color: THEME.text, fontSize: 13, outline: 'none' }}
+          placeholder={current.placeholder}
+          style={{
+            flex: 1, background: COLORS.bg, color: COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            padding: '8px 12px', fontSize: 13, outline: 'none',
+          }}
         />
-        <button
-          onClick={handleGenerate}
-          disabled={loading || !topic.trim()}
-          style={{ background: THEME.accent, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: loading ? 'wait' : 'pointer', fontWeight: 700, opacity: loading || !topic.trim() ? 0.6 : 1 }}
-        >
-          {loading ? 'Generating...' : 'Generate'}
-        </button>
+        <button onClick={generate} disabled={generating || !topic.trim()} style={{
+          background: COLORS.accent, color: '#fff', border: 'none',
+          borderRadius: 6, padding: '8px 16px', fontWeight: 700, fontSize: 13,
+          cursor: (generating || !topic.trim()) ? 'not-allowed' : 'pointer',
+          opacity: (generating || !topic.trim()) ? 0.6 : 1,
+        }}>{generating ? 'Generating...' : 'Generate'}</button>
       </div>
 
       {output && (
-        <div>
-          <textarea
-            value={output}
-            readOnly
-            style={{ width: '100%', minHeight: 200, background: '#0f1117', border: `1px solid ${THEME.panelBorder}`, borderRadius: 6, padding: 12, color: THEME.text, fontSize: 12, resize: 'vertical', fontFamily: 'monospace', boxSizing: 'border-box' }}
-          />
-          <button
-            onClick={handleDownload}
-            style={{ marginTop: 8, background: 'transparent', color: THEME.accent, border: `1px solid ${THEME.accent}`, borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 12 }}
-          >
-            ⬇ Download .md
-          </button>
-        </div>
+        <>
+          <textarea readOnly value={output} style={{
+            width: '100%', minHeight: 200, maxHeight: 320,
+            background: COLORS.bg, color: COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            padding: 12, fontSize: 12, fontFamily: 'monospace',
+            resize: 'vertical', boxSizing: 'border-box',
+          }} />
+          <button onClick={download} style={{
+            marginTop: 8, background: 'transparent', color: COLORS.accent,
+            border: `1px solid ${COLORS.accent}`, borderRadius: 6,
+            padding: '6px 14px', cursor: 'pointer', fontSize: 12,
+          }}>📥 Download .md</button>
+        </>
       )}
     </div>
   )
 }
 
-function KnowledgeDashboard({ stats, onReIngest }) {
+function KnowledgeDashboard({ folderPath, onReIngest }) {
+  const [stats, setStats] = useState({ nodes: 0, edges: 0, lastIngestion: 'never', nodesByType: {} })
+  const [recentFiles, setRecentFiles] = useState([])
+
+  const refresh = async () => {
+    try {
+      const s = await apiCall('/api/stats')
+      setStats(s)
+      const f = await apiCall('/api/recent-files')
+      setRecentFiles(f)
+    } catch (_) { /* ignore */ }
+  }
+
+  useEffect(() => {
+    refresh()
+    const interval = setInterval(refresh, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
-    <div style={{ background: THEME.panel, border: `1px solid ${THEME.panelBorder}`, borderRadius: 12, padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 18 }}>📊</span>
-        <h2 style={{ margin: 0, color: THEME.text, fontSize: 16, fontWeight: 700 }}>Knowledge Dashboard</h2>
+    <div style={PANEL_STYLE}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 20 }}>📊</span>
+        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 700 }}>Knowledge Base</h2>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        {[
-          { label: 'Files Ingested', value: stats?.filesIngested?.toLocaleString() || '0' },
-          { label: 'Entity Nodes', value: stats?.nodes?.toLocaleString() || '0' },
-          { label: 'Relationships', value: stats?.edges?.toLocaleString() || '0' },
-          { label: 'Last Run', value: stats?.lastRun || 'Never' },
-        ].map(item => (
-          <div key={item.label} style={{ background: '#0f1117', borderRadius: 8, padding: 12 }}>
-            <div style={{ color: THEME.textMuted, fontSize: 11, marginBottom: 4 }}>{item.label}</div>
-            <div style={{ color: THEME.text, fontSize: 18, fontWeight: 700 }}>{item.value}</div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+        <div style={{ background: COLORS.bg, borderRadius: 6, padding: 10 }}>
+          <div style={{ color: COLORS.muted, fontSize: 11 }}>Nodes</div>
+          <div style={{ color: COLORS.text, fontSize: 20, fontWeight: 700 }}>{stats.nodes.toLocaleString()}</div>
+        </div>
+        <div style={{ background: COLORS.bg, borderRadius: 6, padding: 10 }}>
+          <div style={{ color: COLORS.muted, fontSize: 11 }}>Edges</div>
+          <div style={{ color: COLORS.text, fontSize: 20, fontWeight: 700 }}>{stats.edges.toLocaleString()}</div>
+        </div>
       </div>
 
-      <button
-        onClick={onReIngest}
-        style={{ background: 'transparent', color: THEME.accent, border: `1px solid ${THEME.accent}`, borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, width: '100%' }}
-      >
-        Re-ingest
-      </button>
+      <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 10 }}>
+        <div>Last ingestion: {stats.lastIngestion === 'never' || stats.lastIngestion === '1970-01-01T00:00:00.000Z' ? 'never' : new Date(stats.lastIngestion).toLocaleString()}</div>
+        {folderPath && <div style={{ marginTop: 4, wordBreak: 'break-all' }}>📁 {folderPath}</div>}
+      </div>
+
+      {Object.keys(stats.nodesByType || {}).length > 0 && (
+        <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 10 }}>
+          {Object.entries(stats.nodesByType).map(([type, count]) => (
+            <div key={type}>• {type}: {count}</div>
+          ))}
+        </div>
+      )}
+
+      {recentFiles.length > 0 && (
+        <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 10 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Recent files:</div>
+          {recentFiles.slice(0, 5).map(f => (
+            <div key={f.file} style={{ wordBreak: 'break-all', marginBottom: 2 }}>• {f.file.split(/[\\/]/).pop()}</div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={onReIngest} style={{
+        width: '100%', background: 'transparent', color: COLORS.accent,
+        border: `1px solid ${COLORS.accent}`, borderRadius: 6,
+        padding: '8px 14px', cursor: 'pointer', fontSize: 13,
+      }}>🔄 Re-ingest</button>
     </div>
   )
 }
 
 export default function AtlasInterface() {
+  const [folderPath, setFolderPath] = useState('')
+  const [scanResults, setScanResults] = useState(null)
   const [dryRunReport, setDryRunReport] = useState(null)
   const [showDryRunModal, setShowDryRunModal] = useState(false)
-  const [ingestionState, setIngestionState] = useState(null)
-  const [stats, setStats] = useState({ filesIngested: 0, nodes: 0, edges: 0, lastRun: 'Never' })
-  const [files, setFiles] = useState([])
+  const [ingesting, setIngesting] = useState(false)
+  const [progress, setProgress] = useState(null)
 
-  const handleFolderSelected = useCallback((selectedFiles, rootFolder) => {
-    setFiles(selectedFiles)
-  }, [])
-
-  const handleDryRun = useCallback(async () => {
-    const mockReport = {
-      file_breakdown: { '.docx': { count: 142, total_size_mb: 890 }, '.pdf': { count: 89, total_size_mb: 1200 }, '.mp4': { count: 8, total_size_mb: 4100 } },
-      supported_count: 1132,
-      skipped_count: 18,
-      flagged: [
-        { filename: 'HR-Performance-Review-2025.docx', path: '/path/HR-Performance-Review-2025.docx', size_bytes: 147456, extension: '.docx', matched_pattern: '/performance.?review/i', user_decision: 'skip' },
-        { filename: 'Payroll-March-2026.xlsx', path: '/path/Payroll-March-2026.xlsx', size_bytes: 239616, extension: '.xlsx', matched_pattern: '/payroll/i', user_decision: 'skip' },
-      ],
-      time_estimate: { parsing_seconds: 720, audio_transcription_seconds: 2040, pii_redaction_seconds: 480, entity_extraction_seconds: 2820, graph_commit_seconds: 300, total_seconds: 6360, total_human: '1hr 46min' },
-      cost_estimate: { audio_transcription_usd: 2.70, other_usd: 0, total_usd: 2.70, audio_file_count: 20, estimated_audio_minutes: 900 },
-      graph_size_estimate: { min_nodes: 2400, max_nodes: 3200, min_edges: 4800, max_edges: 6400, estimated_mb: 180 },
+  const handleScan = async () => {
+    try {
+      const results = await apiCall('/api/scan', { method: 'POST', body: { folderPath } })
+      setScanResults(results)
+    } catch (err) {
+      alert(`Scan failed: ${err.message}`)
     }
-    setDryRunReport(mockReport)
-    setShowDryRunModal(true)
-  }, [])
+  }
 
-  const handleStartIngestion = useCallback(async (decisions) => {
+  const handleDryRun = async () => {
+    if (!scanResults) return
+    try {
+      const report = await apiCall('/api/dry-run', { method: 'POST', body: { crawlResults: scanResults, rootPath: folderPath } })
+      setDryRunReport(report)
+      setShowDryRunModal(true)
+    } catch (err) {
+      alert(`Dry run failed: ${err.message}`)
+    }
+  }
+
+  const handleStartIngestion = async () => {
     setShowDryRunModal(false)
-    setIngestionState({ status: 'running', processed: 0, total: 1132, currentFile: 'vendor-selection.docx' })
-    let processed = 0
-    const interval = setInterval(() => {
-      processed += Math.floor(Math.random() * 15) + 5
-      if (processed >= 1132) {
-        clearInterval(interval)
-        setIngestionState({ status: 'complete', processed: 1132, total: 1132, currentFile: null })
-        setStats({ filesIngested: 1132, nodes: 3847, edges: 7203, lastRun: '10 min ago' })
-      } else {
-        setIngestionState(prev => ({ ...prev, processed, currentFile: `file_${processed}.docx` }))
-      }
-    }, 200)
-  }, [])
+    setIngesting(true)
+    const total = scanResults?.summary?.total_changed || 1
+    setProgress({ current: 0, total, currentFile: 'preparing...' })
 
-  const handleChatSend = useCallback(async (query) => {
-    return {
-      text: `Based on your knowledge base, here is what I found about: "${query}"\n\nAtlas has ${stats.nodes} entity nodes available for querying. Configure the ingestion path and run ingestion to see real results.`,
-      sources: [],
-      external: null,
+    const simInterval = setInterval(() => {
+      setProgress(prev => {
+        if (!prev) return prev
+        const next = Math.min(prev.current + 1, prev.total - 1)
+        return { ...prev, current: next, currentFile: `processing file ${next + 1}...` }
+      })
+    }, 500)
+
+    try {
+      const result = await apiCall('/api/ingest', { method: 'POST', body: { folderPath, skipFlagged: true } })
+      clearInterval(simInterval)
+      setProgress({ current: total, total, currentFile: `done — ${result.nodes_added} nodes, ${result.edges_added} edges` })
+      setTimeout(() => { setIngesting(false); setProgress(null) }, 2500)
+    } catch (err) {
+      clearInterval(simInterval)
+      alert(`Ingestion failed: ${err.message}`)
+      setIngesting(false)
+      setProgress(null)
     }
-  }, [stats])
-
-  const handleGenerate = useCallback(async (type, topic) => {
-    return { content: `# ${type.charAt(0).toUpperCase() + type.slice(1)}: ${topic}\n\nThis artefact will be generated from your knowledge base. Run ingestion first to populate the graph.\n\n---\nGenerated by Atlas | ${new Date().toISOString()}` }
-  }, [])
+  }
 
   return (
-    <div style={{ background: THEME.bg, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: THEME.text, padding: 20 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{
+      background: COLORS.bg, minHeight: '100vh', color: COLORS.text,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      padding: 20,
+    }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      `}</style>
+
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 36, height: 36, background: THEME.accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⚡</div>
+          <div style={{ width: 36, height: 36, background: COLORS.accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⚡</div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: THEME.text }}>Atlas</h1>
-            <p style={{ margin: 0, fontSize: 12, color: THEME.textMuted }}>Workspace Intelligence Assistant</p>
+            <h1 style={{ margin: 0, color: COLORS.text, fontSize: 22, fontWeight: 800 }}>Atlas</h1>
+            <p style={{ margin: 0, fontSize: 12, color: COLORS.muted }}>Workspace Intelligence Assistant</p>
           </div>
         </div>
 
         <FolderWidget
-          onFolderSelected={handleFolderSelected}
-          ingestionState={ingestionState}
+          folderPath={folderPath}
+          setFolderPath={setFolderPath}
+          scanResults={scanResults}
+          onScan={handleScan}
           onDryRun={handleDryRun}
-          onStartIngestion={() => handleStartIngestion({})}
-          onPause={() => setIngestionState(prev => ({ ...prev, status: 'paused' }))}
-          onCancel={() => setIngestionState(null)}
-          dryRunReport={dryRunReport}
+          onStartIngestion={handleStartIngestion}
+          ingesting={ingesting}
+          progress={progress}
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-          <div style={{ minHeight: 500 }}>
-            <ChatPanel onSend={handleChatSend} />
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
+          <div style={{ minHeight: 540 }}>
+            <ChatPanel />
           </div>
           <div>
-            <SynthesisPanel onGenerate={handleGenerate} />
-            <KnowledgeDashboard stats={stats} onReIngest={() => handleStartIngestion({})} />
+            <SynthesisPanel />
+            <KnowledgeDashboard folderPath={folderPath} onReIngest={handleStartIngestion} />
           </div>
         </div>
 

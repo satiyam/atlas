@@ -1,1 +1,8 @@
 node_modules
+.env
+public/
+graph/nodes.json
+graph/edges.json
+logs/delta_log.jsonl
+logs/audit_log.jsonl
+logs/ingestion_log.jsonl

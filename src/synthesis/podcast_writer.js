@@ -1,66 +1,136 @@
-const fs = require('fs')
-const path = require('path')
+﻿const graphStore = require('../graph/graph_store')
+const queryRouter = require('../query/query_router')
+const deltaTracker = require('../graph/delta_tracker')
 
-require('dotenv').config()
-const Anthropic = require('@anthropic-ai/sdk')
-const { graphRetriever } = require('../query/query_router')
-const { buildArtefactFooter } = require('../query/response_synth')
+let _client = null
+function getClient() {
+  if (!_client) {
+    const Anthropic = require('@anthropic-ai/sdk')
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'sk-missing-key' })
+  }
+  return _client
+}
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
+function buildCitationsFooter(topic, nodes, external) {
+  const now = new Date().toISOString()
+  const lines = [
+    '',
+    '---',
+    `**Generated:** ${now}`,
+    `**Topic:** ${topic}`,
+    '',
+    '### Internal Sources',
+  ]
 
-const MIN_WORDS = 800
-
-async function generatePodcastScript(topic) {
-  const graphResults = graphRetriever(topic)
-  const context = graphResults.results.slice(0, 15).map(n => JSON.stringify(n.data, null, 2)).join('\n\n')
-  const sources = graphResults.sources
-
-  const prompt = `You are generating a two-voice podcast script about: "${topic}".
-
-Rules:
-- Two voices: HOST (narrative, accessible, storytelling) and EXPERT (analytical, data-driven, specific)
-- Minimum 800 words total
-- Every EXPERT claim must be grounded in the context below
-- Include at least 5 HOST/EXPERT exchanges
-- End with a "Key Takeaways" section (3-5 bullet points)
-- Format: HOST: [text]\n\nEXPERT: [text]\n\n (alternating)
-- Do not reproduce verbatim content from sources — synthesise and cite
-- Use inline citations for major claims: [Source: filename]
-
-Knowledge base context:
-${context || 'Limited internal data available — note this in the script.'}
-
-Generate the full podcast script now. Ensure it is at least 800 words.`
-
-  const response = await anthropic.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: prompt }],
-  })
-
-  let script = response.content[0].text
-
-  const wordCount = script.split(/\s+/).length
-  if (wordCount < MIN_WORDS) {
-    const extendPrompt = `The script above is ${wordCount} words. Extend it to reach at least 800 words by adding 2 more HOST/EXPERT exchanges that dive deeper into implications and real-world application. Continue from the existing script:\n\n${script}`
-    const extension = await anthropic.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: extendPrompt }],
-    })
-    script += '\n\n' + extension.content[0].text
+  if (!nodes || nodes.length === 0) {
+    lines.push('_No internal knowledge graph sources matched this topic._')
+  } else {
+    for (const n of nodes) {
+      const title = n.attributes?.title || n.attributes?.name || n.attributes?.summary || n.id
+      lines.push(`- ${title} | ${n.type} | ${n.source_file || '(no source file)'}`)
+    }
   }
 
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-  const footer = buildArtefactFooter(sources.length, 0, config)
+  if (external?.sources?.length) {
+    lines.push('', '### External Research')
+    for (const s of external.sources) {
+      if (!s?.title && !s?.url) continue
+      lines.push(`- ${s.title || '(no title)'} | ${s.url || '(no url)'}`)
+    }
+  }
 
+  lines.push('', `**Last ingestion:** ${deltaTracker.getLastCursor()}`)
+  return lines.join('\n')
+}
+
+function buildFallbackScript(topic, nodes, external, apiError) {
+  const lines = [
+    `# Podcast: ${topic}`,
+    '',
+    `_Claude API unavailable (${apiError}). Showing a structured outline from available knowledge graph data._`,
+    '',
+    `HOST: Welcome to the Atlas briefing. Today we are looking at "${topic}".`,
+    '',
+    `EXPERT: Our knowledge graph surfaced ${nodes?.length || 0} relevant entities on this topic.`,
+    '',
+  ]
+
+  if (nodes && nodes.length > 0) {
+    lines.push('HOST: Let us walk through what we found.')
+    lines.push('')
+    for (const n of nodes.slice(0, 6)) {
+      const title = n.attributes?.title || n.attributes?.name || n.attributes?.summary || n.id
+      lines.push(`EXPERT: ${n.type} — ${title}.`)
+      lines.push('')
+    }
+  }
+
+  if (external?.findings?.length) {
+    lines.push('HOST: Here is the external industry context.')
+    lines.push('')
+    for (const f of external.findings.slice(0, 3)) {
+      lines.push(`EXPERT: ${f.text || JSON.stringify(f)}`)
+      lines.push('')
+    }
+  }
+
+  lines.push('HOST: That is our brief for today. Next steps live in your Atlas dashboard.')
+  return lines.join('\n')
+}
+
+async function generatePodcastScript(topic) {
+  const nodes = graphStore.queryNodes({ keyword: topic })
+  const external = await queryRouter.gensparkRetriever(`best practices ${topic} organisations`)
+
+  const prompt = `
+Generate a podcast script about "${topic}".
+
+Internal organisational knowledge:
+${JSON.stringify(nodes)}
+
+External industry context:
+${JSON.stringify(external)}
+
+Format the script as a dialogue between:
+HOST: Narrative voice, contextual, accessible. Tells the story, provides background.
+EXPERT: Analytical voice, challenges assumptions, adds depth, benchmarks against industry.
+
+Structure:
+[INTRO] Host introduces the topic
+[BACKGROUND] Expert provides context from the data
+[KEY DECISIONS] Both discuss what was decided and why
+[INDUSTRY CONTEXT] Expert benchmarks using external data
+[TAKEAWAYS] Host summarises key insights
+[OUTRO] Host closes with next steps
+
+Requirements:
+- Minimum 800 words
+- Conversational and engaging — not a report
+- Reference specific decisions and people from the data
+- Make it feel like a real business podcast
+`.trim()
+
+  let script
+  try {
+    const client = getClient()
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    script = response?.content?.[0]?.text || buildFallbackScript(topic, nodes, external, 'empty response')
+  } catch (err) {
+    script = buildFallbackScript(topic, nodes, external, err.message)
+  }
+
+  const footer = buildCitationsFooter(topic, nodes, external)
   return {
-    script: `# Podcast Script: ${topic}\n\n${script}\n\n${footer}`,
-    sources,
-    word_count: script.split(/\s+/).length,
     topic,
+    script: `# Podcast Script: ${topic}\n\n${script}\n${footer}`,
+    word_count: script.split(/\s+/).length,
+    internal_source_count: nodes.length,
+    external_source_count: external?.sources?.length || 0,
   }
 }
 
-module.exports = { generatePodcastScript }
+module.exports = { generatePodcastScript, buildCitationsFooter }

@@ -1,126 +1,114 @@
-const fs = require('fs')
+﻿const fs = require('fs')
 const path = require('path')
 
-const CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
-const DELTA_LOG_PATH = path.join(__dirname, '../../logs/delta_log.jsonl')
-const NODES_PATH = path.join(__dirname, '../../graph/nodes.json')
+const deltaTracker = require('../graph/delta_tracker')
 
-require('dotenv').config()
-const Anthropic = require('@anthropic-ai/sdk')
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+let _client = null
+function getClient() {
+  if (!_client) {
+    const Anthropic = require('@anthropic-ai/sdk')
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'sk-missing-key' })
+  }
+  return _client
+}
 
-function getLastIngestionTimestamp() {
+function getLastIngestionTime() {
   try {
-    const lines = fs.readFileSync(DELTA_LOG_PATH, 'utf8').split('\n').filter(Boolean)
-    const checkpoints = lines
-      .map(l => { try { return JSON.parse(l) } catch (_) { return null } })
-      .filter(e => e && e.event_type === 'SYNC_CHECKPOINT')
-    if (checkpoints.length === 0) return 'Never'
-    return checkpoints[checkpoints.length - 1].timestamp
+    const cursor = deltaTracker.getLastCursor()
+    if (cursor === '1970-01-01T00:00:00.000Z') return 'never'
+    return cursor
   } catch (_) {
-    return 'Unknown'
+    return 'unknown'
   }
 }
 
-function getFilesInKnowledgeBase() {
+function formatInternalSources(nodes) {
+  if (!nodes || nodes.length === 0) return 'No internal sources found'
+  return nodes.map(n => {
+    const title = n.attributes?.title || n.attributes?.name || n.attributes?.summary || n.id
+    return `• ${title} | ${n.type} | ${n.source_file || '(no source file)'}`
+  }).join('\n')
+}
+
+function formatExternalSources(genspark) {
+  if (!genspark || !Array.isArray(genspark.sources) || genspark.sources.length === 0) return null
+  return genspark.sources
+    .filter(s => s && (s.title || s.url))
+    .map(s => `• ${s.title || '(no title)'} | ${s.url || '(no url)'}`)
+    .join('\n')
+}
+
+async function generateAnswer(query, routerResult) {
+  const prompt = `
+Answer this question: "${query}"
+
+Internal knowledge graph data:
+${JSON.stringify(routerResult.nodes || [])}
+
+External research:
+${JSON.stringify(routerResult.genspark || null)}
+
+Rules:
+- Answer in natural language
+- Only use information from the sources above
+- Do not invent facts
+- Keep answer concise and clear
+`.trim()
+
   try {
-    const nodes = JSON.parse(fs.readFileSync(NODES_PATH, 'utf8'))
-    return nodes.filter(n => n.type === 'FILE_SOURCE' && n.data.ingestion_status === 'complete').length
-  } catch (_) {
-    return 0
+    const client = getClient()
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    return response?.content?.[0]?.text || '(no answer generated)'
+  } catch (err) {
+    const nodes = routerResult.nodes || []
+    if (nodes.length === 0 && !routerResult.genspark) {
+      return `I could not find relevant information in your knowledge base for: "${query}". (Claude API unavailable: ${err.message})`
+    }
+    const bullets = nodes.slice(0, 5).map(n => {
+      const title = n.attributes?.title || n.attributes?.name || n.attributes?.summary || n.id
+      return `- ${title} (${n.type})`
+    }).join('\n')
+    return `Answer generation unavailable (${err.message}). Graph matches for "${query}":\n${bullets || '(none)'}`
   }
 }
 
-function getAudioCostForSources(sources) {
-  return sources
-    .filter(s => s.transcription_cost_usd)
-    .reduce((sum, s) => sum + s.transcription_cost_usd, 0)
-}
-
-function formatSourceCitation(source) {
-  const author = source.author || '[author unknown]'
-  const modified = source.last_modified ? new Date(source.last_modified).toISOString().split('T')[0] : 'unknown date'
-  return `• ${source.filename} | ${source.file_type} | ${author} | ${modified} | ${source.path}`
-}
-
-function formatExternalCitation(result) {
-  if (!result || !result.result) return null
-  const retrieved = result.retrieved_at ? new Date(result.retrieved_at).toISOString().split('T')[0] : 'unknown'
-  const sourceName = result.source === 'genspark' ? 'Genspark Research' : 'Claude Web Search'
-  return `• ${sourceName} | retrieved: ${retrieved}`
-}
-
-function buildTransparencyFooter(sources, config) {
-  const rootFolder = config.ingestion_path || 'Not configured'
-  const filesInKb = getFilesInKnowledgeBase()
-  const lastIngestion = getLastIngestionTimestamp()
-  const filesAccessed = sources.length
-  const audioCost = getAudioCostForSources(sources)
-
-  let footer = `─── Knowledge Base Transparency ───────────────────────────────────\n`
-  footer += `Root folder: ${rootFolder}\n`
-  footer += `Files in knowledge base: ${filesInKb}\n`
-  footer += `Files accessed this response: ${filesAccessed}\n`
-  footer += `Last ingestion: ${lastIngestion}`
-
-  if (audioCost > 0) {
-    footer += `\nAudio transcription cost this session: $${audioCost.toFixed(4)}`
-  }
-
-  return footer
-}
-
-async function generateAnswer(query, internalResults) {
-  const context = internalResults?.results?.slice(0, 10)
-    .map(n => JSON.stringify(n.data, null, 2))
-    .join('\n\n') || 'No internal knowledge found.'
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    messages: [{
-      role: 'user',
-      content: `Answer the following question using ONLY the context below. Be specific, cite facts from the context, and do not reproduce verbatim content.\n\nQuestion: ${query}\n\nContext:\n${context}`,
-    }],
-  })
-
-  return response.content[0].text
-}
-
-async function synthesise(routerResult) {
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-
+async function synthesise(routerResult, query) {
   if (routerResult.refused) {
     return routerResult.refusal_message
   }
 
-  const answer = await generateAnswer(routerResult.query, routerResult.internal_results)
-
-  const sources = routerResult.sources || []
-  const internalCitations = sources.map(formatSourceCitation).join('\n')
-
-  let response = answer + '\n\n'
-
-  if (sources.length > 0) {
-    response += `─── Internal Sources ──────────────────────────────────────────────\n`
-    response += internalCitations + '\n\n'
+  if (routerResult.classification === 'SYNTHESIS') {
+    return `This query looks like a synthesis request. Use the Synthesis panel to generate a podcast, brief, or handover for: "${routerResult.synthesis_topic || query}"`
   }
 
-  const externalFormatted = formatExternalCitation(routerResult.external_results)
-  if (externalFormatted) {
-    response += `─── External Research (via Genspark) ──────────────────────────────\n`
-    response += externalFormatted + '\n\n'
+  const answer = await generateAnswer(query, routerResult)
+  const internalSources = formatInternalSources(routerResult.nodes)
+  const externalSources = formatExternalSources(routerResult.genspark)
+  const lastIngestion = getLastIngestionTime()
+  const nodesSearched = routerResult.total_searched ?? routerResult.nodes?.length ?? 0
+
+  let output = `${answer}\n\n--- Internal Sources ---\n${internalSources}\n`
+
+  if (externalSources) {
+    output += `\n--- External Research (via Genspark) ---\n${externalSources}\n`
   }
 
-  response += buildTransparencyFooter(sources, config)
+  output += `\n--- Knowledge Base Transparency ---\n`
+  output += `Nodes searched: ${nodesSearched}\n`
+  output += `Nodes returned: ${routerResult.nodes?.length ?? 0}\n`
+  output += `Last ingestion: ${lastIngestion}\n`
 
-  return response
+  return output
 }
 
-function buildArtefactFooter(sourcesCount, externalCount, config) {
-  const rootFolder = config.ingestion_path || 'Not configured'
-  const lastIngestion = getLastIngestionTimestamp()
-  return `---\nArtefact generated by Atlas | ${new Date().toISOString()}\nSources: ${sourcesCount} internal files | ${externalCount} external sources\nRoot folder: ${rootFolder}\nLast ingestion: ${lastIngestion}`
+module.exports = {
+  synthesise,
+  generateAnswer,
+  formatInternalSources,
+  formatExternalSources,
+  getLastIngestionTime,
 }
-
-module.exports = { synthesise, buildArtefactFooter, getLastIngestionTimestamp, getFilesInKnowledgeBase }

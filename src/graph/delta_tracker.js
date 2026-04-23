@@ -1,86 +1,65 @@
 const fs = require('fs')
 const path = require('path')
-const { v4: uuidv4 } = require('uuid')
 
-const DELTA_LOG_PATH = path.join(__dirname, '../../logs/delta_log.jsonl')
-const CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
+const DELTA_LOG = path.join(__dirname, '../../logs/delta_log.jsonl')
 
 function ensureLogFile() {
-  const dir = path.dirname(DELTA_LOG_PATH)
+  const dir = path.dirname(DELTA_LOG)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(DELTA_LOG_PATH)) fs.writeFileSync(DELTA_LOG_PATH, '', 'utf8')
+  if (!fs.existsSync(DELTA_LOG)) fs.writeFileSync(DELTA_LOG, '', 'utf8')
 }
 
 function appendEvent(event) {
   ensureLogFile()
-  const line = JSON.stringify(event) + '\n'
-  fs.appendFileSync(DELTA_LOG_PATH, line, 'utf8')
+  event.id = event.id || ('evt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
+  event.timestamp = event.timestamp || new Date().toISOString()
+  fs.appendFileSync(DELTA_LOG, JSON.stringify(event) + '\n', 'utf8')
+  return event
 }
 
-function createEvent(eventType, entityType, entityId, operation, payload, triggeredBy) {
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-  return {
-    id: uuidv4(),
-    event_type: eventType,
-    entity_type: entityType,
-    entity_id: entityId,
-    operation,
-    payload,
-    cursor: config.last_cursor || '1970-01-01T00:00:00.000Z',
-    timestamp: new Date().toISOString(),
-    triggered_by: triggeredBy || null,
-  }
-}
-
-function nodeCreated(node, triggeredBy) {
-  const event = createEvent('NODE_CREATED', node.type, node.id, 'insert', node, triggeredBy)
-  appendEvent(event)
-}
-
-function nodeUpdated(entityType, entityId, before, after, triggeredBy) {
-  const event = createEvent('NODE_UPDATED', entityType, entityId, 'update', { before, after }, triggeredBy)
-  appendEvent(event)
-}
-
-function edgeCreated(edge, triggeredBy) {
-  const event = createEvent('EDGE_CREATED', 'edge', edge.id, 'insert', edge, triggeredBy)
-  appendEvent(event)
-}
-
-function edgeUpdated(edgeId, before, after, triggeredBy) {
-  const event = createEvent('EDGE_UPDATED', 'edge', edgeId, 'update', { before, after }, triggeredBy)
-  appendEvent(event)
-}
-
-function purgeEvent(entityType, entityId, snapshot, triggeredBy) {
-  const event = createEvent('PURGE', entityType, entityId, 'delete', snapshot, triggeredBy)
-  appendEvent(event)
-}
-
-function writeCheckpoint(stats, triggeredBy = 'ingestion-complete') {
-  const event = createEvent('SYNC_CHECKPOINT', null, null, 'checkpoint', stats, triggeredBy)
-  appendEvent(event)
-
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-  config.last_cursor = event.timestamp
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8')
-
-  return event.timestamp
+function readAllEvents() {
+  ensureLogFile()
+  const raw = fs.readFileSync(DELTA_LOG, 'utf8')
+  if (!raw.trim()) return []
+  return raw.split('\n').filter(Boolean).map(line => {
+    try { return JSON.parse(line) } catch (_) { return null }
+  }).filter(Boolean)
 }
 
 function getLastCursor() {
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-  return config.last_cursor || '1970-01-01T00:00:00.000Z'
+  const events = readAllEvents()
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.event_type === 'SYNC_CHECKPOINT') {
+      return e.cursor || e.timestamp || '1970-01-01T00:00:00.000Z'
+    }
+  }
+  return '1970-01-01T00:00:00.000Z'
 }
 
 function getEventsSince(cursor) {
-  ensureLogFile()
-  const lines = fs.readFileSync(DELTA_LOG_PATH, 'utf8').split('\n').filter(Boolean)
-  const cursorTime = new Date(cursor).getTime()
-
-  return lines
-    .map(line => { try { return JSON.parse(line) } catch (_) { return null } })
-    .filter(e => e && new Date(e.timestamp).getTime() > cursorTime)
+  const cutoff = new Date(cursor).getTime()
+  return readAllEvents().filter(e => new Date(e.timestamp).getTime() > cutoff)
 }
 
-module.exports = { appendEvent, nodeCreated, nodeUpdated, edgeCreated, edgeUpdated, purgeEvent, writeCheckpoint, getLastCursor, getEventsSince }
+function writeCheckpoint() {
+  return appendEvent({
+    event_type: 'SYNC_CHECKPOINT',
+    operation: 'CURSOR',
+    cursor: new Date().toISOString(),
+  })
+}
+
+function _resetForTests() {
+  try { fs.writeFileSync(DELTA_LOG, '', 'utf8') } catch (_) {}
+}
+
+module.exports = {
+  appendEvent,
+  getLastCursor,
+  getEventsSince,
+  writeCheckpoint,
+  readAllEvents,
+  DELTA_LOG,
+  _resetForTests,
+}

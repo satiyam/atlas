@@ -1,8 +1,8 @@
-const fs = require('fs')
+﻿const fs = require('fs')
 const path = require('path')
 const Anthropic = require('@anthropic-ai/sdk')
 
-const VISION_MODEL = 'claude-sonnet-4-20250514'
+const VISION_MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 1024
 const DEFAULT_CONCURRENCY = 3
 

@@ -3,7 +3,7 @@
 **Version:** 0.4 (Multi-Modal + Folder Widget + Dry Run)
 **Status:** Active Build
 **Last Updated:** 2026-04-22
-**Current Build Status:** Empty — updated each session as components are completed.
+**Current Build Status:** Hackathon build complete — all 10 hours delivered, 119 tests passing.
 
 ---
 
@@ -264,17 +264,54 @@ Load from `.env` file at startup. Never hardcode API keys.
 
 ## Build Status (Updated Each Session)
 
-| Component | Status |
-|---|---|
-| Project scaffold | ✅ Complete |
-| Deep Recursive Crawler | ⬜ Pending |
-| Dry Run Engine | ⬜ Pending |
-| Multi-Modal File Parser | ⬜ Pending |
-| PII Redactor | ⬜ Pending |
-| Entity Extractor | ⬜ Pending |
-| Knowledge Graph Store | ⬜ Pending |
-| Query Router | ⬜ Pending |
-| Response Synthesiser | ⬜ Pending |
-| Genspark Integration | ⬜ Pending |
-| Synthesis Agent | ⬜ Pending |
-| Atlas UI | ⬜ Pending |
+| Component | Status | Tests |
+|---|---|---|
+| Project scaffold | ✅ Complete | — |
+| Deep Recursive Crawler | ✅ Complete | 20/20 passing |
+| Dry Run Engine | ✅ Complete | 20/20 passing |
+| Multi-Modal File Parser | ✅ Complete | 5/5 passing |
+| PII Redactor | ✅ Complete | 19/19 passing |
+| Entity Extractor | ✅ Complete | 18/18 passing |
+| Knowledge Graph Store + Delta Tracker | ✅ Complete | 17/17 passing |
+| Query Router | ✅ Complete | 17/17 passing |
+| Response Synthesiser | ✅ Complete | covered |
+| Genspark Integration | ✅ Complete (+ Claude web search fallback) | covered |
+| Synthesis Agents (podcast + brief + handover + benchmark) | ✅ Complete | 3/3 passing |
+| Express API Server | ✅ Complete (boot-tested) | — |
+| Atlas UI (React) | ✅ Complete | — |
+
+**Test Summary:** 8 suites, 119/119 tests passing (`maxWorkers: 1` to avoid filesystem races between suites).
+
+## End-to-End Integration Test Results
+
+Two E2E runs executed:
+
+**Run 1 — real pipeline (no API keys present):**
+- Staged 3 text files with Meridian / Project Phoenix scenario content
+- Ran `graphStore.runIncrementalIngestion(tempFolder)` — processed all 3 files end-to-end
+- Crawl → parse → PII redact → entity extract → merge → upsert → checkpoint
+- Final nodes: **0** (Claude API unavailable — no `ANTHROPIC_API_KEY` in this environment)
+- Pipeline completed in 557ms without crashing
+- Graceful fallback behaviour confirmed for all downstream stages
+
+**Run 2 — simulated post-extraction graph (pre-populated):**
+- 6 nodes, 8 edges (what Claude extraction would produce from the scenario)
+- Node types: 2 PERSON, 1 PROJECT, 1 DECISION, 1 MEETING, 1 TOPIC
+- Query `"Who decided on the vendor for Project Phoenix?"` → classified INTERNAL, matched 5 relevant nodes
+- Project Brief for "Project Phoenix" — 33 lines, all citations resolved to source file
+- Handover Document for "Sarah Chen" — 33 lines, 7 sections including role, projects, decisions
+- Podcast Script for "Project Phoenix" — 27 lines, references graph entities + external context placeholder
+
+## Final Node Count
+
+- **E2E (no API keys):** 0 nodes — extraction requires Claude API
+- **E2E (simulated):** 6 nodes, 8 edges
+- **Production expectation:** with a real `ANTHROPIC_API_KEY`, 3 Meridian files produce ~8–15 nodes and ~12–20 edges per the dry-run estimates (documents = 3 nodes / 4 edges average)
+
+## Deviations from Plan
+
+- `node-msg-parser` does not exist on npm. Replaced with `@kenjiuno/msgreader` (active, maintained). `.msg` files now parse via that library.
+- Sensitive content includes a content-based classifier in the PII redactor, which is stricter than the plan's filename-only flagging. This is additive — the filename flagger still exists in the crawler and dry-run.
+- Jest runs with `maxWorkers: 1` because multiple suites share `graph/nodes.json` / `graph/edges.json` / `logs/delta_log.jsonl` and parallel workers race on these files. An alternative would be per-suite temp paths via env vars — we deferred that to post-hackathon.
+- The initial Sonnet model ID in scaffolding (`claude-sonnet-4-20250514`) is now deprecated. All 8 call-sites updated to `claude-sonnet-4-6`.
+- Fallback behaviour is more extensive than the plan specified: every module that calls Claude has a structured fallback that produces useful output (cited markdown) when the API is unavailable. This was necessary for the E2E test to demonstrate the pipeline without API keys present.

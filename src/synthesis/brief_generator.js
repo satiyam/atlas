@@ -1,84 +1,138 @@
-const fs = require('fs')
-const path = require('path')
+﻿const graphStore = require('../graph/graph_store')
+const deltaTracker = require('../graph/delta_tracker')
 
-require('dotenv').config()
-const Anthropic = require('@anthropic-ai/sdk')
-const { graphRetriever } = require('../query/query_router')
-const { buildArtefactFooter } = require('../query/response_synth')
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
-const NODES_PATH = path.join(__dirname, '../../graph/nodes.json')
-
-function getProjectData(projectName) {
-  try {
-    const nodes = JSON.parse(fs.readFileSync(NODES_PATH, 'utf8'))
-    const project = nodes.find(n => n.type === 'PROJECT' && n.data.name?.toLowerCase().includes(projectName.toLowerCase()))
-    if (!project) return null
-
-    const projectId = project.id
-    const decisions = nodes.filter(n => n.type === 'DECISION' && n.data.source_file === project.data.source_file)
-    const persons = nodes.filter(n => n.type === 'PERSON' && n.data.source_file === project.data.source_file)
-    const meetings = nodes.filter(n => n.type === 'MEETING' && n.data.source_file === project.data.source_file)
-    const documents = nodes.filter(n => n.type === 'DOCUMENT' && n.data.source_file === project.data.source_file)
-
-    return { project: project.data, decisions: decisions.map(d => d.data), persons: persons.map(p => p.data), meetings: meetings.map(m => m.data), documents: documents.map(d => d.data) }
-  } catch (_) {
-    return null
+let _client = null
+function getClient() {
+  if (!_client) {
+    const Anthropic = require('@anthropic-ai/sdk')
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'sk-missing-key' })
   }
+  return _client
+}
+
+function collectProjectNodes(projectName) {
+  const allNodes = Object.values(graphStore.readNodes())
+  const allEdges = graphStore.readEdgesArray()
+
+  const keyword = projectName.toLowerCase()
+  const matchesKeyword = (node) => JSON.stringify(node).toLowerCase().includes(keyword)
+
+  const primary = allNodes.filter(matchesKeyword)
+  const primaryIds = new Set(primary.map(n => n.id))
+
+  const connectedIds = new Set(primaryIds)
+  for (const edge of allEdges) {
+    if (primaryIds.has(edge.source_id)) connectedIds.add(edge.target_id)
+    if (primaryIds.has(edge.target_id)) connectedIds.add(edge.source_id)
+  }
+
+  return {
+    primary,
+    connected: allNodes.filter(n => connectedIds.has(n.id) && !primaryIds.has(n.id)),
+    all: allNodes.filter(n => connectedIds.has(n.id)),
+    edges: allEdges.filter(e => connectedIds.has(e.source_id) && connectedIds.has(e.target_id)),
+  }
+}
+
+function buildFallbackBrief(projectName, bundle, error) {
+  const lines = [
+    `# Project Brief: ${projectName}`,
+    '',
+    `_Claude API unavailable (${error}). Structured view from knowledge graph._`,
+    '',
+    '## 1. Executive Summary',
+  ]
+
+  const project = bundle.primary.find(n => n.type === 'PROJECT')
+  if (project) {
+    lines.push(`- Project: ${project.attributes?.name || project.id}`)
+    if (project.attributes?.status) lines.push(`- Status: ${project.attributes.status}`)
+    if (project.attributes?.description) lines.push(`- Description: ${project.attributes.description}`)
+  } else {
+    lines.push(`- No PROJECT node found matching "${projectName}".`)
+  }
+
+  lines.push('', '## 2. Key Decisions')
+  const decisions = bundle.all.filter(n => n.type === 'DECISION')
+  if (decisions.length === 0) lines.push('_No decisions captured._')
+  for (const d of decisions) lines.push(`- ${d.attributes?.summary || d.id} [Source: ${d.source_file}]`)
+
+  lines.push('', '## 3. Team Members')
+  const people = bundle.all.filter(n => n.type === 'PERSON')
+  if (people.length === 0) lines.push('_No people captured._')
+  for (const p of people) lines.push(`- ${p.attributes?.name || p.id}${p.attributes?.role ? ` — ${p.attributes.role}` : ''} [Source: ${p.source_file}]`)
+
+  lines.push('', '## 4. Documents and Artefacts')
+  const docs = bundle.all.filter(n => n.type === 'DOCUMENT')
+  if (docs.length === 0) lines.push('_No documents captured._')
+  for (const d of docs) lines.push(`- ${d.attributes?.title || d.id} [Source: ${d.source_file}]`)
+
+  lines.push('', '## 5. Timeline')
+  if (project?.attributes?.start_date) lines.push(`- Start: ${project.attributes.start_date}`)
+  if (project?.attributes?.end_date) lines.push(`- End: ${project.attributes.end_date}`)
+  const meetings = bundle.all.filter(n => n.type === 'MEETING')
+  for (const m of meetings) lines.push(`- Meeting ${m.attributes?.date || '(date?)'}: ${m.attributes?.title || m.id}`)
+
+  lines.push('', '## 6. Open Items')
+  lines.push('_Open items pending — no data source parsed this explicitly._')
+
+  return lines.join('\n')
 }
 
 async function generateProjectBrief(projectName) {
-  const graphResults = graphRetriever(projectName)
-  const projectData = getProjectData(projectName)
-  const context = graphResults.results.slice(0, 15).map(n => JSON.stringify(n.data, null, 2)).join('\n\n')
-  const sources = graphResults.sources
+  const bundle = collectProjectNodes(projectName)
 
-  const prompt = `Generate a comprehensive project brief for: "${projectName}"
+  const prompt = `
+Generate a project brief for "${projectName}" using ONLY the knowledge graph data below.
+Do not invent facts. If a section lacks data, say so explicitly.
 
-The brief must have exactly these 6 sections with citations from the context:
+Knowledge graph nodes:
+${JSON.stringify(bundle.all)}
 
+Knowledge graph edges:
+${JSON.stringify(bundle.edges)}
+
+Produce a markdown document with exactly these 6 sections:
 ## 1. Executive Summary
-(3-5 sentences: what the project is and why it matters)
+## 2. Key Decisions
+## 3. Team Members
+## 4. Documents and Artefacts
+## 5. Timeline
+## 6. Open Items
 
-## 2. Background and Context
-(Problem being solved, strategic alignment)
+Include inline citations after factual claims: [Source: filename]
+`.trim()
 
-## 3. Key Decisions Made
-(Chronological decision log — cite specific decisions from context)
+  let brief
+  try {
+    const client = getClient()
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2500,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    brief = response?.content?.[0]?.text || buildFallbackBrief(projectName, bundle, 'empty response')
+  } catch (err) {
+    brief = buildFallbackBrief(projectName, bundle, err.message)
+  }
 
-## 4. Team and Stakeholders
-(People involved with their roles)
-
-## 5. Status and Next Steps
-(Current status, action items)
-
-## 6. Source Documents
-(Bibliography of all relevant documents from context)
-
-Every claim must cite a source: [Source: filename]
-Do not reproduce verbatim content.
-
-Context:
-${context || 'Limited data available for this project.'}
-
-${projectData ? `\nProject data:\n${JSON.stringify(projectData, null, 2)}` : ''}`
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 3000,
-    messages: [{ role: 'user', content: prompt }],
-  })
-
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
-  const footer = buildArtefactFooter(sources.length, 0, config)
-  const brief = response.content[0].text
+  const sourceFiles = Array.from(new Set(bundle.all.map(n => n.source_file).filter(Boolean)))
+  const footer = [
+    '',
+    '---',
+    `**Generated:** ${new Date().toISOString()}`,
+    `**Internal sources:** ${sourceFiles.length} file(s)`,
+    sourceFiles.map(f => `- ${f}`).join('\n'),
+    `**Last ingestion:** ${deltaTracker.getLastCursor()}`,
+  ].join('\n')
 
   return {
-    brief: `# Project Brief: ${projectName}\n\n${brief}\n\n${footer}`,
-    sources,
     project_name: projectName,
+    brief: `# Project Brief: ${projectName}\n\n${brief}\n${footer}`,
+    node_count: bundle.all.length,
+    edge_count: bundle.edges.length,
+    source_files: sourceFiles,
   }
 }
 
-module.exports = { generateProjectBrief }
+module.exports = { generateProjectBrief, collectProjectNodes }

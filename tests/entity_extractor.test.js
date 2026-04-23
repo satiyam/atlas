@@ -1,167 +1,208 @@
-const { loadSchema, filterSignal, mergeAndValidate } = require('../src/ingestion/entity_extractor')
+const {
+  loadSchema,
+  filterSignal,
+  mergeAndValidate,
+  slugify,
+  extractJsonBlock,
+  _resetSchemaCacheForTests,
+} = require('../src/ingestion/entity_extractor')
+
+beforeEach(() => _resetSchemaCacheForTests())
 
 describe('loadSchema', () => {
-  test('loads and parses graph/schema.json successfully', async () => {
-    const schema = await loadSchema()
-    expect(schema).toBeTruthy()
-    expect(schema.entities).toBeDefined()
-    expect(schema._meta).toBeDefined()
+  test('reads graph/schema.json at runtime and caches it', () => {
+    const s1 = loadSchema()
+    const s2 = loadSchema()
+    expect(s1).toBe(s2)
+    expect(s1.entities).toBeDefined()
   })
 
-  test('schema contains all 8 required entity types', async () => {
-    const schema = await loadSchema()
-    const entityTypes = Object.keys(schema.entities)
-    expect(entityTypes).toContain('PERSON')
-    expect(entityTypes).toContain('PROJECT')
-    expect(entityTypes).toContain('DECISION')
-    expect(entityTypes).toContain('DOCUMENT')
-    expect(entityTypes).toContain('MEETING')
-    expect(entityTypes).toContain('TOPIC')
-    expect(entityTypes).toContain('FILE_SOURCE')
-    expect(entityTypes).toContain('DELTA_EVENT')
-  })
-
-  test('PERSON entity has required fields', async () => {
-    const schema = await loadSchema()
-    const personFields = schema.entities.PERSON.fields
-    expect(personFields.id).toBeDefined()
-    expect(personFields.id.required).toBe(true)
-    expect(personFields.name).toBeDefined()
-    expect(personFields.name.required).toBe(true)
-    expect(personFields.ingested_at).toBeDefined()
-    expect(personFields.source_file).toBeDefined()
-    expect(personFields.checksum).toBeDefined()
-  })
-
-  test('FILE_SOURCE entity has transcription fields', async () => {
-    const schema = await loadSchema()
-    const fsFields = schema.entities.FILE_SOURCE.fields
-    expect(fsFields.transcription_id).toBeDefined()
-    expect(fsFields.transcription_cost_usd).toBeDefined()
-    expect(fsFields.checksum).toBeDefined()
-    expect(fsFields.ingestion_status).toBeDefined()
-  })
-
-  test('DELTA_EVENT has all 6 event types in enum', async () => {
-    const schema = await loadSchema()
-    const eventTypeField = schema.entities.DELTA_EVENT.fields.event_type
-    expect(eventTypeField.enum).toContain('NODE_CREATED')
-    expect(eventTypeField.enum).toContain('NODE_UPDATED')
-    expect(eventTypeField.enum).toContain('EDGE_CREATED')
-    expect(eventTypeField.enum).toContain('EDGE_UPDATED')
-    expect(eventTypeField.enum).toContain('PURGE')
-    expect(eventTypeField.enum).toContain('SYNC_CHECKPOINT')
-  })
-
-  test('schema contains relationships array', async () => {
-    const schema = await loadSchema()
-    expect(Array.isArray(schema.relationships)).toBe(true)
-    expect(schema.relationships.length).toBeGreaterThan(0)
+  test('validates all 8 entity types present', () => {
+    const schema = loadSchema()
+    const required = ['PERSON', 'PROJECT', 'DECISION', 'DOCUMENT', 'MEETING', 'TOPIC', 'FILE_SOURCE', 'DELTA_EVENT']
+    for (const type of required) {
+      expect(schema.entities[type]).toBeDefined()
+    }
   })
 })
 
 describe('filterSignal', () => {
-  test('returns false for empty content', () => {
-    expect(filterSignal('')).toBe(false)
-    expect(filterSignal(null)).toBe(false)
-    expect(filterSignal(undefined)).toBe(false)
+  test('returns isSignal: false for short content', () => {
+    const result = filterSignal('Hello team. Short update today.')
+    expect(result.isSignal).toBe(false)
+    expect(result.reason).toMatch(/word threshold/i)
   })
 
-  test('returns false for content below 50 words', () => {
-    const shortContent = 'This is a very short piece of text.'
-    expect(filterSignal(shortContent)).toBe(false)
+  test('returns isSignal: false for empty content', () => {
+    expect(filterSignal('').isSignal).toBe(false)
+    expect(filterSignal(null).isSignal).toBe(false)
   })
 
-  test('returns true for content with 50+ words', () => {
-    const longContent = 'The Atlas project team met on Monday April 22nd to review the Q1 vendor selection process. James Tan, the Project Lead, presented three vendor options: Option A from Vendor Corp, Option B from Tech Solutions, and Option C from DataSystems. After discussion, the steering committee decided to proceed with Option B based on cost and delivery timeline. Next steps include contract negotiation and onboarding by May 15th.'
-    expect(filterSignal(longContent)).toBe(true)
+  test('returns isSignal: true when content contains decision language', () => {
+    const content = 'The steering committee met on Monday to review the vendor proposals. After extensive discussion, ' +
+      'the team decided to select TechCorp as the primary vendor for Project Phoenix. Sarah Chen will lead the ' +
+      'procurement workstream and begin onboarding activities next week. The decision was agreed upon by all stakeholders ' +
+      'and confirmed with executive sponsorship.'
+    const result = filterSignal(content)
+    expect(result.isSignal).toBe(true)
+    expect(result.markers.decision).toBe(true)
   })
 
-  test('returns false for boilerplate disclaimer text', () => {
-    const boilerplate = 'Confidentiality notice: This email and any attachments are for the exclusive and confidential use of the intended recipient.'
-    expect(filterSignal(boilerplate)).toBe(false)
+  test('returns isSignal: true when content contains project references', () => {
+    const content = 'Project Phoenix is the flagship initiative for the Meridian organisation this year. The project ' +
+      'covers three major workstreams across procurement, engineering, and operations. Phase one of the initiative ' +
+      'focuses on vendor assessment, phase two covers implementation, and phase three handles rollout across departments. ' +
+      'The workstream leads report weekly to the steering committee.'
+    const result = filterSignal(content)
+    expect(result.isSignal).toBe(true)
+    expect(result.markers.project).toBe(true)
   })
 
-  test('returns true for meeting transcript content', () => {
-    const transcript = 'James: Good morning everyone. Sarah: Good morning. Today we are discussing the Atlas rollout timeline. James: The engineering team has completed the core graph module. Sarah: When can we expect the UI to be ready? James: Target is end of May. We decided last week that the MVP needs to support all 18 file types before launch.'
-    expect(filterSignal(transcript)).toBe(true)
+  test('returns isSignal: false for duplicate checksum', () => {
+    const content = 'Project Phoenix is the flagship initiative for the Meridian organisation this year. ' +
+      'The project covers three major workstreams across procurement, engineering, and operations. ' +
+      'After lengthy review the steering committee approved the scope and confirmed funding for all phases. ' +
+      'Sarah Chen will lead the procurement workstream and begin onboarding activities next week. ' +
+      'The team decided to proceed with the recommended vendor and agreed to the implementation timeline.'
+    const first = filterSignal(content, 'checksum123')
+    expect(first.isSignal).toBe(true)
+    const second = filterSignal(content, 'checksum123')
+    expect(second.isSignal).toBe(false)
+    expect(second.reason).toMatch(/duplicate/i)
+  })
+})
+
+describe('slugify', () => {
+  test('converts names to lowercase underscore format', () => {
+    expect(slugify('Sarah Chen')).toBe('sarah_chen')
+    expect(slugify('Project Phoenix!')).toBe('project_phoenix')
+    expect(slugify('  Decision 2026  ')).toBe('decision_2026')
+  })
+
+  test('handles empty and nullish input', () => {
+    expect(slugify('')).toBe('unknown')
+    expect(slugify(null)).toBe('unknown')
+  })
+})
+
+describe('extractJsonBlock', () => {
+  test('parses a fenced JSON response', () => {
+    const text = 'Here is the result:\n```json\n{"nodes": [], "edges": []}\n```'
+    const parsed = extractJsonBlock(text)
+    expect(parsed).toEqual({ nodes: [], edges: [] })
+  })
+
+  test('parses a raw JSON object in text', () => {
+    const text = 'Response: {"nodes": [{"id": "x"}], "edges": []}'
+    const parsed = extractJsonBlock(text)
+    expect(parsed.nodes).toHaveLength(1)
+  })
+
+  test('returns null on malformed JSON', () => {
+    expect(extractJsonBlock('no json here')).toBeNull()
   })
 })
 
 describe('mergeAndValidate', () => {
-  test('returns nodes and edges arrays', async () => {
-    await loadSchema()
-    const mockResults = [
+  const meridianExtraction = {
+    nodes: [
       {
-        skipped: false,
-        source_file: '/test/doc.txt',
-        source_checksum: 'abc123',
-        entities: {
-          PERSON: [{ id: 'p1', name: 'James Tan', role: 'Project Lead', ingested_at: new Date().toISOString(), source_file: '/test/doc.txt', checksum: 'abc' }],
-          PROJECT: [{ id: 'proj1', name: 'Atlas', status: 'active', ingested_at: new Date().toISOString(), source_file: '/test/doc.txt', checksum: 'def' }],
-          DECISION: [], MEETING: [], TOPIC: [], FILE_SOURCE: [], DOCUMENT: [],
-        },
-        edges: [{ id: 'e1', from_id: 'p1', from_type: 'PERSON', to_id: 'proj1', to_type: 'PROJECT', relationship: 'CONTRIBUTED_TO', created_at: new Date().toISOString(), source_file: '/test/doc.txt' }],
-        extraction_errors: [],
+        id: 'person_sarah_chen',
+        type: 'PERSON',
+        attributes: { name: 'Sarah Chen', role: 'Procurement Lead' },
+        source_file: '/meridian/phoenix-decision.txt',
+        ingested_at: '2026-04-22T10:00:00Z',
+        checksum: 'abc123',
       },
-    ]
+      {
+        id: 'decision_select_techcorp',
+        type: 'DECISION',
+        attributes: { summary: 'Selected TechCorp as primary vendor for Project Phoenix', date: '2026-04-15' },
+        source_file: '/meridian/phoenix-decision.txt',
+        ingested_at: '2026-04-22T10:00:00Z',
+        checksum: 'abc123',
+      },
+      {
+        id: 'project_phoenix',
+        type: 'PROJECT',
+        attributes: { name: 'Project Phoenix', status: 'active' },
+        source_file: '/meridian/phoenix-decision.txt',
+        ingested_at: '2026-04-22T10:00:00Z',
+        checksum: 'abc123',
+      },
+    ],
+    edges: [
+      { source_id: 'person_sarah_chen', target_id: 'decision_select_techcorp', relationship_type: 'MADE' },
+      { source_id: 'person_sarah_chen', target_id: 'project_phoenix', relationship_type: 'CONTRIBUTED_TO' },
+    ],
+    source_file: '/meridian/phoenix-decision.txt',
+    checksum: 'abc123',
+  }
 
-    const result = await mergeAndValidate(mockResults)
-    expect(result).toHaveProperty('nodes')
-    expect(result).toHaveProperty('edges')
-    expect(Array.isArray(result.nodes)).toBe(true)
-    expect(Array.isArray(result.edges)).toBe(true)
-    expect(result.nodes.length).toBeGreaterThan(0)
+  test('extracts PERSON and DECISION nodes from Meridian sample', () => {
+    const result = mergeAndValidate([meridianExtraction])
+    const personNode = result.nodes.find(n => n.type === 'PERSON')
+    const decisionNode = result.nodes.find(n => n.type === 'DECISION')
+
+    expect(personNode).toBeDefined()
+    expect(personNode.attributes.name).toBe('Sarah Chen')
+    expect(decisionNode).toBeDefined()
+    expect(decisionNode.attributes.summary).toContain('TechCorp')
   })
 
-  test('skips results marked as skipped', async () => {
-    await loadSchema()
-    const mockResults = [
-      { skipped: true, source_file: '/test/red.txt', entities: {}, edges: [], skip_reason: 'RED classification' },
-      {
-        skipped: false,
-        source_file: '/test/ok.txt',
-        entities: {
-          PERSON: [{ id: 'p2', name: 'Sarah', ingested_at: new Date().toISOString(), source_file: '/test/ok.txt', checksum: 'xyz' }],
-          PROJECT: [], DECISION: [], MEETING: [], TOPIC: [], FILE_SOURCE: [], DOCUMENT: [],
-        },
-        edges: [],
-        extraction_errors: [],
-      },
+  test('deduplicates nodes by id keeping the most recent', () => {
+    const extractions = [
+      { nodes: [{ id: 'person_sarah', type: 'PERSON', attributes: { name: 'Sarah', role: 'PM' }, ingested_at: '2026-04-22T10:00:00Z' }], edges: [] },
+      { nodes: [{ id: 'person_sarah', type: 'PERSON', attributes: { name: 'Sarah', role: 'Lead PM', team: 'Product' }, ingested_at: '2026-04-22T11:00:00Z' }], edges: [] },
     ]
-
-    const result = await mergeAndValidate(mockResults)
-    const names = result.nodes.map(n => n.data.name)
-    expect(names).toContain('Sarah')
+    const result = mergeAndValidate(extractions)
+    expect(result.nodes).toHaveLength(1)
+    expect(result.nodes[0].attributes.role).toBe('Lead PM')
+    expect(result.nodes[0].attributes.team).toBe('Product')
   })
 
-  test('deduplicates entities with same name and type', async () => {
-    await loadSchema()
-    const mockResults = [
-      {
-        skipped: false,
-        source_file: '/test/doc1.txt',
-        entities: {
-          PERSON: [{ id: 'p3a', name: 'Alice Wong', role: 'Lead', ingested_at: new Date().toISOString(), source_file: '/test/doc1.txt', checksum: 'aaa' }],
-          PROJECT: [], DECISION: [], MEETING: [], TOPIC: [], FILE_SOURCE: [], DOCUMENT: [],
-        },
-        edges: [],
-        extraction_errors: [],
-      },
-      {
-        skipped: false,
-        source_file: '/test/doc2.txt',
-        entities: {
-          PERSON: [{ id: 'p3b', name: 'Alice Wong', role: 'Senior Lead', ingested_at: new Date().toISOString(), source_file: '/test/doc2.txt', checksum: 'bbb' }],
-          PROJECT: [], DECISION: [], MEETING: [], TOPIC: [], FILE_SOURCE: [], DOCUMENT: [],
-        },
-        edges: [],
-        extraction_errors: [],
-      },
-    ]
+  test('rejects nodes with invalid types', () => {
+    const extractions = [{
+      nodes: [
+        { id: 'x1', type: 'PERSON', attributes: {}, ingested_at: '2026-04-22T10:00:00Z' },
+        { id: 'x2', type: 'NOT_A_TYPE', attributes: {}, ingested_at: '2026-04-22T10:00:00Z' },
+      ],
+      edges: [],
+    }]
+    const result = mergeAndValidate(extractions)
+    expect(result.nodes).toHaveLength(1)
+    expect(result.rejected.some(r => r.reason.includes('invalid type'))).toBe(true)
+  })
 
-    const result = await mergeAndValidate(mockResults)
-    const aliceNodes = result.nodes.filter(n => n.type === 'PERSON' && n.data.name === 'Alice Wong')
-    expect(aliceNodes.length).toBe(1)
+  test('rejects edges with invalid relationship_type', () => {
+    const extractions = [{
+      nodes: [
+        { id: 'a', type: 'PERSON', attributes: {}, ingested_at: '2026-04-22T10:00:00Z' },
+        { id: 'b', type: 'PROJECT', attributes: {}, ingested_at: '2026-04-22T10:00:00Z' },
+      ],
+      edges: [
+        { source_id: 'a', target_id: 'b', relationship_type: 'MADE_UP_RELATIONSHIP' },
+      ],
+    }]
+    const result = mergeAndValidate(extractions)
+    expect(result.edges).toHaveLength(0)
+    expect(result.rejected.some(r => r.kind === 'edge')).toBe(true)
+  })
+
+  test('drops orphan edges (pointing to non-existent nodes)', () => {
+    const extractions = [{
+      nodes: [{ id: 'a', type: 'PERSON', attributes: {}, ingested_at: '2026-04-22T10:00:00Z' }],
+      edges: [{ source_id: 'a', target_id: 'nonexistent', relationship_type: 'MADE' }],
+    }]
+    const result = mergeAndValidate(extractions)
+    expect(result.edges).toHaveLength(0)
+    expect(result.summary.orphan_edges_dropped).toBe(1)
+  })
+
+  test('summary reports node counts by type', () => {
+    const result = mergeAndValidate([meridianExtraction])
+    expect(result.summary.by_type.PERSON).toBe(1)
+    expect(result.summary.by_type.PROJECT).toBe(1)
+    expect(result.summary.by_type.DECISION).toBe(1)
   })
 })

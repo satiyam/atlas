@@ -2,9 +2,14 @@
   "name": "atlas",
   "version": "0.4.0",
   "description": "Consent-first, filesystem-native, multi-modal workspace intelligence assistant",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "ui:dev": "vite",
+    "ui:build": "vite build",
+    "ui:preview": "vite preview",
+    "build": "vite build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -12,24 +17,32 @@
   "dependencies": {
     "@anthropic-ai/sdk": "latest",
     "@kenjiuno/msgreader": "latest",
+    "cors": "latest",
     "dotenv": "latest",
+    "express": "latest",
     "fluent-ffmpeg": "latest",
     "jszip": "latest",
     "mammoth": "latest",
     "nodemailer": "latest",
     "openai": "latest",
     "pdf-parse": "latest",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "uuid": "latest",
     "xlsx": "latest"
   },
   "devDependencies": {
-    "jest": "^30.3.0"
+    "@vitejs/plugin-react": "^6.0.1",
+    "jest": "^30.3.0",
+    "nodemon": "latest",
+    "vite": "^8.0.9"
   },
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
       "**/tests/**/*.test.js"
-    ]
+    ],
+    "maxWorkers": 1
   },
   "engines": {
     "node": ">=22.0.0"

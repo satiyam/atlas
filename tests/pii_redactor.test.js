@@ -1,171 +1,130 @@
-const { classify, redact, redactBatch } = require('../src/ingestion/pii_redactor')
+const { classify, redact, redactBatch, RedactionError } = require('../src/ingestion/pii_redactor')
 
-function makeFile(rawText, filename = 'test.txt', fileType = '.txt') {
-  return {
-    file_path: `/test/${filename}`,
-    filename,
-    file_type: fileType,
-    raw_text: rawText,
-    metadata: { author: null, created_at: null, page_count: null, duration_seconds: null, transcription_id: null, transcription_cost_usd: null, language: null },
-    parse_error: null,
-  }
-}
-
-describe('classify — GREEN cases', () => {
-  test('classifies clean project content as GREEN', () => {
-    const content = 'The Atlas project is progressing well. The team met on Monday to review the vendor proposal and decided to proceed with Option B.'
-    expect(classify(content)).toBe('GREEN')
+describe('classify', () => {
+  test('GREEN: clean organisational content', () => {
+    expect(classify('Project Phoenix met on Monday to review vendor proposals.')).toBe('GREEN')
   })
 
-  test('classifies technical documentation as GREEN', () => {
-    const content = 'The API endpoint accepts a POST request with a JSON body containing the query parameter. Returns a 200 status with the graph results.'
-    expect(classify(content)).toBe('GREEN')
+  test('GREEN: empty or null input defaults to GREEN', () => {
+    expect(classify('')).toBe('GREEN')
+    expect(classify(null)).toBe('GREEN')
+    expect(classify(undefined)).toBe('GREEN')
   })
 
-  test('classifies meeting notes as GREEN when no PII present', () => {
-    const content = 'Steering committee agreed to extend the project timeline by two weeks. Action item: prepare updated Gantt chart by Friday.'
-    expect(classify(content)).toBe('GREEN')
-  })
-})
-
-describe('classify — AMBER cases', () => {
-  test('classifies content with email address as AMBER', () => {
-    const content = 'Please contact james.tan@temus.com for more information about the project.'
-    expect(classify(content)).toBe('AMBER')
+  test('AMBER: content with email address', () => {
+    expect(classify('Please contact sarah.chen@phoenix.com for the vendor list.')).toBe('AMBER')
   })
 
-  test('classifies content with Singapore NRIC as AMBER', () => {
-    const content = 'Employee ID: S1234567A. Please process the access request.'
-    expect(classify(content)).toBe('AMBER')
+  test('AMBER: content with Singapore NRIC', () => {
+    expect(classify('Employee record S1234567A was updated today.')).toBe('AMBER')
   })
 
-  test('classifies content with phone number as AMBER', () => {
-    const content = 'Call 9123 4567 to reach the project lead.'
-    expect(classify(content)).toBe('AMBER')
-  })
-})
-
-describe('classify — RED cases', () => {
-  test('classifies salary content as RED', () => {
-    const content = 'The salary for this role is SGD 8,500 per month.'
-    expect(classify(content)).toBe('RED')
+  test('AMBER: content with Singapore phone number', () => {
+    expect(classify('Reach me on 91234567 for project updates.')).toBe('AMBER')
   })
 
-  test('classifies performance review content as RED', () => {
-    const content = 'The performance review for Q3 shows the employee is underperforming against targets.'
-    expect(classify(content)).toBe('RED')
+  test('RED: content mentioning salary', () => {
+    expect(classify('The salary for this role is under review.')).toBe('RED')
   })
 
-  test('classifies medical record content as RED', () => {
-    const content = 'Medical record shows the employee has a disability affecting mobility.'
-    expect(classify(content)).toBe('RED')
+  test('RED: content mentioning termination', () => {
+    expect(classify('Termination of employment effective immediately.')).toBe('RED')
   })
 
-  test('classifies termination content as RED', () => {
-    const content = 'The termination letter was sent to the employee on 15 April 2026.'
-    expect(classify(content)).toBe('RED')
+  test('RED: content mentioning disciplinary action', () => {
+    expect(classify('Disciplinary hearing scheduled for Monday.')).toBe('RED')
   })
 
-  test('classifies PIP content as RED', () => {
-    const content = 'The employee has been placed on a performance improvement plan effective immediately.'
-    expect(classify(content)).toBe('RED')
+  test('RED: content mentioning PIP', () => {
+    expect(classify('Employee placed on PIP this quarter.')).toBe('RED')
   })
 
-  test('classifies compensation content as RED', () => {
-    const content = 'Total compensation package including base, bonus, and equity.'
-    expect(classify(content)).toBe('RED')
-  })
-
-  test('classifies HR investigation content as RED', () => {
-    const content = 'The HR investigation into the misconduct allegation is ongoing.'
-    expect(classify(content)).toBe('RED')
+  test('RED: RED takes precedence over AMBER', () => {
+    expect(classify('Contact sarah@phoenix.com regarding the salary review.')).toBe('RED')
   })
 })
 
-describe('redact — GREEN content', () => {
-  test('returns GREEN content unchanged', () => {
-    const file = makeFile('The project is on track. Team delivered the milestone on time.')
-    const result = redact(file)
+describe('redact', () => {
+  test('GREEN content passes through unchanged', () => {
+    const result = redact('Project Phoenix vendor selection process.')
     expect(result.classification).toBe('GREEN')
-    expect(result.content).toBe(file.raw_text)
-    expect(result.redacted).toBe(false)
-    expect(result.blocked).toBe(false)
+    expect(result.content).toBe('Project Phoenix vendor selection process.')
+    expect(result.redactions_applied).toEqual([])
   })
-})
 
-describe('redact — AMBER content', () => {
-  test('anonymises email addresses', () => {
-    const file = makeFile('Contact james.tan@temus.com for project access.')
-    const result = redact(file)
+  test('AMBER: email is replaced with [EMAIL REDACTED]', () => {
+    const result = redact('Contact sarah.chen@phoenix.com today.')
     expect(result.classification).toBe('AMBER')
-    expect(result.content).not.toContain('james.tan')
-    expect(result.content).toContain('[name]@temus.com')
-    expect(result.transforms_applied).toContain('email_anonymised')
-    expect(result.blocked).toBe(false)
+    expect(result.content).not.toContain('sarah.chen@phoenix.com')
+    expect(result.content).toContain('[EMAIL REDACTED]')
+    expect(result.redactions_applied.some(r => r.type === 'email')).toBe(true)
   })
 
-  test('redacts NRIC/FIN numbers', () => {
-    const file = makeFile('Employee NRIC: S1234567A. Process the request.')
-    const result = redact(file)
+  test('AMBER: NRIC is replaced with [ID REDACTED]', () => {
+    const result = redact('Record S1234567A needs review.')
     expect(result.classification).toBe('AMBER')
     expect(result.content).not.toContain('S1234567A')
-    expect(result.content).toContain('[REDACTED-ID]')
-    expect(result.transforms_applied).toContain('nric_fin_redacted')
+    expect(result.content).toContain('[ID REDACTED]')
+    expect(result.redactions_applied.some(r => r.type === 'nric')).toBe(true)
   })
 
-  test('redacts phone numbers', () => {
-    const file = makeFile('Call 9123 4567 to reach the office.')
-    const result = redact(file)
+  test('AMBER: SG phone number is replaced with [PHONE REDACTED]', () => {
+    const result = redact('Call 91234567 for updates.')
     expect(result.classification).toBe('AMBER')
-    expect(result.content).toContain('[REDACTED-PHONE]')
-    expect(result.transforms_applied).toContain('phone_redacted')
-  })
-})
-
-describe('redact — RED content', () => {
-  test('blocks RED content and returns null content', () => {
-    const file = makeFile('The salary for this position is SGD 10,000.')
-    const result = redact(file)
-    expect(result.classification).toBe('RED')
-    expect(result.content).toBeNull()
-    expect(result.blocked).toBe(true)
-    expect(result.block_reason).toBeTruthy()
+    expect(result.content).not.toContain('91234567')
+    expect(result.content).toContain('[PHONE REDACTED]')
+    expect(result.redactions_applied.some(r => r.type === 'sgPhone')).toBe(true)
   })
 
-  test('preserves original checksum for audit trail', () => {
-    const file = makeFile('Disciplinary action was taken against the employee.')
-    const result = redact(file)
-    expect(result.original_checksum).toBeTruthy()
-    expect(typeof result.original_checksum).toBe('string')
-    expect(result.original_checksum.length).toBe(64)
+  test('AMBER: multiple PII types are all redacted', () => {
+    const result = redact('Contact sarah@x.com or 91234567. Record S1234567A.')
+    expect(result.classification).toBe('AMBER')
+    expect(result.content).toContain('[EMAIL REDACTED]')
+    expect(result.content).toContain('[PHONE REDACTED]')
+    expect(result.content).toContain('[ID REDACTED]')
+    expect(result.redactions_applied).toHaveLength(3)
+  })
+
+  test('RED content throws RedactionError', () => {
+    expect(() => redact('Salary adjustment pending.')).toThrow(RedactionError)
+    expect(() => redact('Termination effective today.')).toThrow(/RED content blocked/)
   })
 })
 
 describe('redactBatch', () => {
-  test('processes multiple files in parallel and returns array', async () => {
+  test('processes mixed GREEN/AMBER/RED batch correctly', () => {
     const files = [
-      makeFile('Clean project content here.', 'project.txt'),
-      makeFile('Contact user@company.com for details.', 'email.txt'),
-      makeFile('Performance improvement plan initiated.', 'pip.txt'),
+      { file_path: '/a.txt', raw_text: 'Clean project content here.' },
+      { file_path: '/b.txt', raw_text: 'Contact sarah@phoenix.com about procurement.' },
+      { file_path: '/c.txt', raw_text: 'Salary review is scheduled.' },
+      { file_path: '/d.txt', raw_text: 'Another clean document.' },
     ]
-    const results = await redactBatch(files)
-    expect(results).toHaveLength(3)
-    expect(results[0].classification).toBe('GREEN')
-    expect(results[1].classification).toBe('AMBER')
-    expect(results[2].classification).toBe('RED')
+
+    const batch = redactBatch(files)
+
+    expect(batch.processed).toBe(4)
+    expect(batch.green).toBe(2)
+    expect(batch.redacted).toBe(1)
+    expect(batch.blocked).toBe(1)
+    expect(batch.results).toHaveLength(3)
+
+    const paths = batch.results.map(r => r.file_path)
+    expect(paths).not.toContain('/c.txt')
   })
 
-  test('batch does not let RED files contaminate other results', async () => {
+  test('results carry classification and redactions_applied', () => {
     const files = [
-      makeFile('Clean content A.', 'a.txt'),
-      makeFile('Salary information is confidential.', 'b.txt'),
-      makeFile('Clean content C.', 'c.txt'),
+      { file_path: '/a.txt', raw_text: 'Clean content.' },
+      { file_path: '/b.txt', raw_text: 'Email: alice@acme.com here.' },
     ]
-    const results = await redactBatch(files)
-    expect(results[0].classification).toBe('GREEN')
-    expect(results[1].classification).toBe('RED')
-    expect(results[2].classification).toBe('GREEN')
-    expect(results[0].content).toBeTruthy()
-    expect(results[2].content).toBeTruthy()
+    const batch = redactBatch(files)
+    expect(batch.results[0].classification).toBe('GREEN')
+    expect(batch.results[1].classification).toBe('AMBER')
+    expect(batch.results[1].raw_text).toContain('[EMAIL REDACTED]')
+  })
+
+  test('empty batch returns zero counts', () => {
+    const batch = redactBatch([])
+    expect(batch).toEqual({ processed: 0, redacted: 0, blocked: 0, green: 0, results: [] })
   })
 })

@@ -1,217 +1,297 @@
-const fs = require('fs')
+﻿const fs = require('fs')
 const path = require('path')
-const { v4: uuidv4 } = require('uuid')
-
-require('dotenv').config()
 const Anthropic = require('@anthropic-ai/sdk')
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const SCHEMA_PATH = path.join(__dirname, '../../graph/schema.json')
+const EXTRACTABLE_TYPES = ['PERSON', 'PROJECT', 'DECISION', 'DOCUMENT', 'MEETING', 'TOPIC']
+const VALID_RELATIONSHIPS = [
+  'CONTRIBUTED_TO', 'MADE', 'AUTHORED', 'ATTENDED',
+  'REFERENCES', 'PRODUCED', 'CONTAINS', 'INCLUDES', 'TAGS',
+]
+const ALL_SCHEMA_TYPES = ['PERSON', 'PROJECT', 'DECISION', 'DOCUMENT', 'MEETING', 'TOPIC', 'FILE_SOURCE', 'DELTA_EVENT']
 const MIN_SIGNAL_WORDS = 50
 
+const DECISION_KEYWORDS = ['decided', 'agreed', 'approved', 'resolved', 'confirmed', 'selected']
+const PROJECT_KEYWORDS = ['project', 'initiative', 'workstream']
+const ACTION_PATTERNS = [/\b[A-Z][a-z]+\s+(will|to|shall)\b/, /\bassigned to\b/i]
+const MEETING_KEYWORDS = ['action item', 'next steps', 'follow up', 'follow-up']
+
+const GREETING_PATTERNS = [
+  /^(hi|hello|hey|greetings|dear)\b/i,
+  /^thanks?\s+(for|you)/i,
+  /^please\s+(find|see|note)/i,
+]
+
 let _schema = null
+let _client = null
+const _checksumCache = new Set()
 
-async function loadSchema() {
-  const raw = await fs.promises.readFile(SCHEMA_PATH, 'utf8')
-  _schema = JSON.parse(raw)
+function getClient() {
+  if (!_client) {
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'sk-missing-key' })
+  }
+  return _client
+}
+
+function loadSchema() {
+  if (_schema) return _schema
+  const raw = fs.readFileSync(SCHEMA_PATH, 'utf8')
+  const parsed = JSON.parse(raw)
+  if (!parsed.entities) throw new Error('Invalid schema: missing "entities" key')
+
+  for (const type of ALL_SCHEMA_TYPES) {
+    if (!parsed.entities[type]) {
+      throw new Error(`Invalid schema: missing required entity type "${type}"`)
+    }
+  }
+
+  _schema = parsed
   return _schema
 }
 
-function getSchema() {
-  if (!_schema) throw new Error('Schema not loaded. Call loadSchema() before extraction.')
-  return _schema
+function _resetSchemaCacheForTests() {
+  _schema = null
+  _checksumCache.clear()
 }
 
-function filterSignal(content) {
-  if (!content || typeof content !== 'string') return false
-  const words = content.trim().split(/\s+/).filter(Boolean)
-  if (words.length < MIN_SIGNAL_WORDS) return false
+function countWords(s) {
+  return (s || '').trim().split(/\s+/).filter(Boolean).length
+}
 
-  const boilerplatePatterns = [
-    /^(confidentiality notice|this email|disclaimer|please do not reply)/i,
-    /^(copyright|all rights reserved|\d{4} .* all rights)/i,
+function filterSignal(content, checksum = null) {
+  if (!content || typeof content !== 'string') {
+    return { isSignal: false, reason: 'empty content' }
+  }
+
+  if (checksum && _checksumCache.has(checksum)) {
+    return { isSignal: false, reason: 'duplicate checksum' }
+  }
+
+  const wordCount = countWords(content)
+  if (wordCount < MIN_SIGNAL_WORDS) {
+    return { isSignal: false, reason: `below ${MIN_SIGNAL_WORDS} word threshold (${wordCount} words)` }
+  }
+
+  const trimmed = content.trim()
+  const isJustGreeting = GREETING_PATTERNS.some(p => p.test(trimmed)) && wordCount < 80
+  if (isJustGreeting) {
+    return { isSignal: false, reason: 'greeting/logistics only' }
+  }
+
+  const lower = content.toLowerCase()
+  const hasDecision = DECISION_KEYWORDS.some(k => lower.includes(k))
+  const hasProject = PROJECT_KEYWORDS.some(k => lower.includes(k))
+  const hasAction = ACTION_PATTERNS.some(p => p.test(content))
+  const hasMeeting = MEETING_KEYWORDS.some(k => lower.includes(k))
+
+  if (hasDecision || hasProject || hasAction || hasMeeting) {
+    if (checksum) _checksumCache.add(checksum)
+    return {
+      isSignal: true,
+      reason: 'signal detected',
+      markers: { decision: hasDecision, project: hasProject, action: hasAction, meeting: hasMeeting },
+    }
+  }
+
+  return { isSignal: false, reason: 'no decision/project/action/meeting markers found' }
+}
+
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'unknown'
+}
+
+function extractJsonBlock(text) {
+  if (!text) return null
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fenced) {
+    try { return JSON.parse(fenced[1].trim()) } catch (_) {}
+  }
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(text.slice(start, end + 1)) } catch (_) {}
+  }
+  return null
+}
+
+async function extractEntities(parsedFile) {
+  const schema = loadSchema()
+  const content = parsedFile?.raw_text || ''
+  const signal = filterSignal(content, parsedFile?.checksum)
+
+  if (!signal.isSignal) {
+    return null
+  }
+
+  const sourceFile = parsedFile.file_path
+  const checksum = parsedFile.checksum
+  const ingestedAt = new Date().toISOString()
+  const snippet = content.slice(0, 6000)
+
+  const prompt = `You are an entity extractor for a knowledge graph.
+Extract entities from this content following the schema.
+
+Schema: ${JSON.stringify(schema)}
+
+Content: ${snippet}
+Source file: ${sourceFile}
+
+Return ONLY a JSON object:
+{
+  "nodes": [
+    {
+      "id": "unique_id",
+      "type": "PERSON|PROJECT|DECISION|DOCUMENT|MEETING|TOPIC",
+      "attributes": { ...type-specific fields },
+      "source_file": "${sourceFile}",
+      "ingested_at": "${ingestedAt}",
+      "checksum": "${checksum}"
+    }
+  ],
+  "edges": [
+    {
+      "source_id": "node_id",
+      "target_id": "node_id",
+      "relationship_type": "CONTRIBUTED_TO|MADE|AUTHORED|ATTENDED|REFERENCES|PRODUCED|CONTAINS|INCLUDES|TAGS"
+    }
   ]
-  if (boilerplatePatterns.some(p => p.test(content.trim()))) return false
-
-  return true
 }
 
-async function extractEntityType(entityType, fieldDefs, content, sourceFile) {
-  const fieldList = Object.entries(fieldDefs)
-    .map(([name, def]) => `  - ${name} (${def.type}${def.required ? ', required' : ', optional'}): ${def.description || ''}`)
-    .join('\n')
-
-  const prompt = `Extract all ${entityType} entities from the following content.
-For each entity, return a JSON object with ONLY fields defined in the schema below.
-Required fields must be present. Optional fields: include only if clearly present in text.
-Do not invent data. If a field is uncertain, omit it.
-Return a JSON array of entity objects, or an empty array [] if none found.
-Do not include any explanation — return only valid JSON.
-
-Schema for ${entityType}:
-${fieldList}
-
-Content:
-${content.slice(0, 8000)}`
+Rules:
+- Only extract entities clearly present in the content
+- Generate deterministic ids: type_slug_of_name (e.g. person_sarah_chen, project_phoenix)
+- Do not invent information not in the content
+- Return empty nodes/edges arrays if nothing found`
 
   try {
-    const response = await anthropic.messages.create({
+    const client = getClient()
+    const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
+      max_tokens: 2500,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const text = response.content[0].text.trim()
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) return []
+    const text = response?.content?.[0]?.text || ''
+    const parsed = extractJsonBlock(text)
 
-    const entities = JSON.parse(jsonMatch[0])
-    return entities.map(e => ({
-      ...e,
-      id: e.id || uuidv4(),
-      ingested_at: new Date().toISOString(),
+    if (!parsed || !Array.isArray(parsed.nodes)) {
+      return { nodes: [], edges: [], source_file: sourceFile, checksum, parse_error: 'could not parse JSON response' }
+    }
+
+    const nodes = parsed.nodes.map(n => ({
+      id: n.id || `${(n.type || 'unknown').toLowerCase()}_${slugify(n.attributes?.name || n.attributes?.title || n.attributes?.label || 'unnamed')}`,
+      type: n.type,
+      attributes: n.attributes || {},
       source_file: sourceFile,
+      ingested_at: ingestedAt,
+      checksum,
     }))
+
+    const edges = Array.isArray(parsed.edges) ? parsed.edges.map(e => ({
+      source_id: e.source_id,
+      target_id: e.target_id,
+      relationship_type: e.relationship_type,
+      source_file: sourceFile,
+      ingested_at: ingestedAt,
+    })) : []
+
+    return { nodes, edges, source_file: sourceFile, checksum }
   } catch (err) {
-    return []
+    return { nodes: [], edges: [], source_file: sourceFile, checksum, api_error: err.message }
   }
 }
 
-async function extractEntities(redactedFile) {
-  if (redactedFile.classification === 'RED' || redactedFile.blocked) {
-    return { source_file: redactedFile.file_path, entities: {}, edges: [], skipped: true, skip_reason: 'RED classification', extraction_errors: [] }
-  }
-
-  const content = redactedFile.content || ''
-  if (!filterSignal(content)) {
-    return { source_file: redactedFile.file_path, entities: {}, edges: [], skipped: true, skip_reason: 'Insufficient signal', extraction_errors: [] }
-  }
-
-  const schema = getSchema()
-  const extractableTypes = ['PERSON', 'PROJECT', 'DECISION', 'MEETING', 'TOPIC']
-  const errors = []
-  const entities = {}
-
-  const extractionPromises = extractableTypes.map(async (entityType) => {
-    const fieldDefs = schema.entities[entityType]?.fields || {}
-    try {
-      const results = await extractEntityType(entityType, fieldDefs, content, redactedFile.file_path)
-      entities[entityType] = results
-    } catch (err) {
-      errors.push(`${entityType}: ${err.message}`)
-      entities[entityType] = []
-    }
-  })
-
-  await Promise.all(extractionPromises)
-
-  const fileSourceId = uuidv4()
-  entities.FILE_SOURCE = [{
-    id: fileSourceId,
-    path: redactedFile.file_path,
-    filename: redactedFile.filename,
-    file_type: redactedFile.file_type,
-    size_bytes: redactedFile.metadata?.size_bytes || 0,
-    last_modified: redactedFile.metadata?.last_modified || new Date().toISOString(),
-    ingested_at: new Date().toISOString(),
-    checksum: redactedFile.original_checksum || '',
-    ingestion_status: 'complete',
-    transcription_id: redactedFile.metadata?.transcription_id || null,
-    transcription_cost_usd: redactedFile.metadata?.transcription_cost_usd || null,
-  }]
-
-  const edges = buildEdges(entities, redactedFile.file_path)
-
-  return {
-    source_file: redactedFile.file_path,
-    source_checksum: redactedFile.original_checksum,
-    entities,
-    edges,
-    skipped: false,
-    skip_reason: null,
-    extraction_errors: errors,
-  }
+async function extractBatch(redactedFiles) {
+  loadSchema()
+  const promises = (redactedFiles || []).map(f => extractEntities(f).catch(err => ({
+    nodes: [], edges: [], source_file: f?.file_path, api_error: err.message,
+  })))
+  const results = await Promise.all(promises)
+  return results.filter(r => r !== null)
 }
 
-function buildEdges(entities, sourceFile) {
-  const edges = []
-  const now = new Date().toISOString()
+function mergeAndValidate(extractionResults) {
+  loadSchema()
 
-  const persons = entities.PERSON || []
-  const projects = entities.PROJECT || []
-  const decisions = entities.DECISION || []
-  const meetings = entities.MEETING || []
-  const documents = entities.DOCUMENT || []
+  const nodesById = new Map()
+  const edgeKey = (e) => `${e.source_id}::${e.target_id}::${e.relationship_type}`
+  const edgesByKey = new Map()
+  const rejected = []
 
-  for (const person of persons) {
-    for (const project of projects) {
-      edges.push({ id: uuidv4(), from_id: person.id, from_type: 'PERSON', to_id: project.id, to_type: 'PROJECT', relationship: 'CONTRIBUTED_TO', created_at: now, source_file: sourceFile })
-    }
-    for (const decision of decisions) {
-      if (!decision.made_by || decision.made_by.length === 0) {
-        edges.push({ id: uuidv4(), from_id: person.id, from_type: 'PERSON', to_id: decision.id, to_type: 'DECISION', relationship: 'MADE', created_at: now, source_file: sourceFile })
+  for (const result of extractionResults || []) {
+    if (!result) continue
+    const nodes = Array.isArray(result.nodes) ? result.nodes : []
+    const edges = Array.isArray(result.edges) ? result.edges : []
+
+    for (const node of nodes) {
+      if (!node.id || !node.type) {
+        rejected.push({ item: node, kind: 'node', reason: 'missing id or type' })
+        continue
       }
-    }
-    for (const meeting of meetings) {
-      edges.push({ id: uuidv4(), from_id: person.id, from_type: 'PERSON', to_id: meeting.id, to_type: 'MEETING', relationship: 'ATTENDED', created_at: now, source_file: sourceFile })
-    }
-  }
+      if (!EXTRACTABLE_TYPES.includes(node.type)) {
+        rejected.push({ item: node, kind: 'node', reason: `invalid type ${node.type}` })
+        continue
+      }
 
-  for (const meeting of meetings) {
-    for (const decision of decisions) {
-      edges.push({ id: uuidv4(), from_id: meeting.id, from_type: 'MEETING', to_id: decision.id, to_type: 'DECISION', relationship: 'PRODUCED', created_at: now, source_file: sourceFile })
-    }
-  }
-
-  const fileSources = entities.FILE_SOURCE || []
-  for (const fileSource of fileSources) {
-    for (const meeting of meetings) {
-      edges.push({ id: uuidv4(), from_id: fileSource.id, from_type: 'FILE_SOURCE', to_id: meeting.id, to_type: 'MEETING', relationship: 'PRODUCED', created_at: now, source_file: sourceFile })
-    }
-    for (const decision of decisions) {
-      edges.push({ id: uuidv4(), from_id: fileSource.id, from_type: 'FILE_SOURCE', to_id: decision.id, to_type: 'DECISION', relationship: 'PRODUCED', created_at: now, source_file: sourceFile })
-    }
-  }
-
-  return edges
-}
-
-async function mergeAndValidate(results) {
-  const schema = getSchema()
-  const merged = { nodes: [], edges: [] }
-  const seenKeys = new Map()
-
-  for (const result of results) {
-    if (result.skipped) continue
-
-    for (const [entityType, entityList] of Object.entries(result.entities)) {
-      for (const entity of entityList) {
-        const key = `${entityType}:${entity.name || entity.label || entity.path || entity.id}`
-        if (seenKeys.has(key)) {
-          const existing = seenKeys.get(key)
-          Object.assign(existing.data, entity)
-        } else {
-          const node = { id: entity.id || uuidv4(), type: entityType, data: entity, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-          seenKeys.set(key, node)
-          merged.nodes.push(node)
+      const existing = nodesById.get(node.id)
+      if (!existing) {
+        nodesById.set(node.id, node)
+      } else {
+        const existingTime = new Date(existing.ingested_at || 0).getTime()
+        const newTime = new Date(node.ingested_at || 0).getTime()
+        if (newTime >= existingTime) {
+          nodesById.set(node.id, { ...existing, ...node, attributes: { ...existing.attributes, ...node.attributes } })
         }
       }
     }
 
-    for (const edge of result.edges) {
-      if (edge.from_id && edge.to_id && edge.relationship) {
-        merged.edges.push(edge)
+    for (const edge of edges) {
+      if (!edge.source_id || !edge.target_id || !edge.relationship_type) {
+        rejected.push({ item: edge, kind: 'edge', reason: 'missing fields' })
+        continue
       }
+      if (!VALID_RELATIONSHIPS.includes(edge.relationship_type)) {
+        rejected.push({ item: edge, kind: 'edge', reason: `invalid relationship_type ${edge.relationship_type}` })
+        continue
+      }
+      const key = edgeKey(edge)
+      if (!edgesByKey.has(key)) edgesByKey.set(key, edge)
     }
   }
 
-  return merged
+  const mergedNodes = Array.from(nodesById.values())
+  const mergedEdges = Array.from(edgesByKey.values())
+
+  const orphanFiltered = mergedEdges.filter(e => nodesById.has(e.source_id) && nodesById.has(e.target_id))
+  const orphanCount = mergedEdges.length - orphanFiltered.length
+
+  return {
+    nodes: mergedNodes,
+    edges: orphanFiltered,
+    rejected,
+    summary: {
+      total_nodes: mergedNodes.length,
+      total_edges: orphanFiltered.length,
+      rejected_count: rejected.length,
+      orphan_edges_dropped: orphanCount,
+      by_type: mergedNodes.reduce((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc }, {}),
+    },
+  }
 }
 
-async function extractBatch(redactedFiles) {
-  await loadSchema()
-  return Promise.all(redactedFiles.map(f => extractEntities(f)))
+module.exports = {
+  loadSchema,
+  filterSignal,
+  extractEntities,
+  extractBatch,
+  mergeAndValidate,
+  slugify,
+  extractJsonBlock,
+  EXTRACTABLE_TYPES,
+  VALID_RELATIONSHIPS,
+  _resetSchemaCacheForTests,
 }
-
-module.exports = { loadSchema, filterSignal, extractEntities, extractBatch, mergeAndValidate }
