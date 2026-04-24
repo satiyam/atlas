@@ -1,0 +1,10 @@
+Risk,Impact,Likelihood,Mitigation,Owner,Source
+Disaster recovery not addressed at architecture approval — question raised but unresolved,High,Medium,Address DR requirements in architecture design document,Sarah Chen,02_Kickoff_Meeting_Minutes.docx
+Vendor lock-in with DataCorp Cloud flagged and escalated to NorthWind CTO; procurement alignment unconfirmed,High,High,Confirm DataCorp Cloud alignment with NorthWind procurement standards,Jun Park,06_Weekly_Status_Update.docx
+Scope instability — deliverable count changed from three to four then reverted to three within six weeks,High,High,Enforce formal change-control process for all scope amendments,Priya Ramesh,03_Steering_Committee_10Feb2026.pdf / 09_Scope_Amendment_Confirmation.docx
+Timeline overrun — final deadline extended from 15 March to 30 March due to scope expansion,Medium,High,Lock scope and enforce revised baseline; no further additions,Priya Ramesh,03_Steering_Committee_10Feb2026.pdf
+Data-quality monitoring (Deliverable 4) descoped to Phase 2 — strategic priority deferred with no Phase 2 plan confirmed,Medium,Medium,Establish Phase 2 timeline and ownership before project close,—,09_Scope_Amendment_Confirmation.docx
+DataCorp Cloud provisioning must be wound down following vendor reversion — risk of cost or contractual exposure during decommission,High,Medium,Execute DataCorp Cloud wind-down plan promptly; confirm no residual commitments,James Tan,09_Scope_Amendment_Confirmation.docx
+Knowledge continuity risk — Marcus Lee producing handover notes indicating key knowledge transfer dependency on a single individual,High,Medium,Ensure James Tan completes handover review; document all open items,James Tan,08_Marcus_Handover_Notes.md
+Vendor switch from TechCorp Cloud to DataCorp Cloud and back introduces rework and potential environment inconsistency,Medium,High,Validate TechCorp Cloud environment integrity before final delivery,Sarah Chen / James Tan,09_Scope_Amendment_Confirmation.docx
+# Generated: 2026-04-24T06:33:43.450Z | Sources: 5 file(s) | Last ingestion: 2026-04-24T06:29:28.132Z

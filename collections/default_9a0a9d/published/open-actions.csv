@@ -1,0 +1,11 @@
+Action,Owner,Due Date,Status,Source
+Set up Databricks workspace on TechCorp Cloud,James Tan,2026-01-25,Open,02_Kickoff_Meeting_Minutes.docx
+Produce Unity Catalog governance baseline,Marcus Lee,2026-01-30,Open,02_Kickoff_Meeting_Minutes.docx
+Deliver architecture design document (including disaster recovery section),Sarah Chen,2026-02-05,Open,02_Kickoff_Meeting_Minutes.docx
+"Address disaster recovery question raised by Li Wei in architecture design document",Sarah Chen,2026-02-05,Open,02_Kickoff_Meeting_Minutes.docx
+"Manage migration of Databricks cluster from TechCorp Cloud to DataCorp Cloud",Sarah Chen,—,Open,03_Steering_Committee_10Feb2026.pdf
+"Manage migration of Databricks cluster from TechCorp Cloud to DataCorp Cloud",James Tan,—,Open,03_Steering_Committee_10Feb2026.pdf
+"Confirm vendor switch to DataCorp Cloud is aligned with NorthWind procurement standards (escalated to Jun Park — NorthWind CTO)",—,—,Open,06_Weekly_Status_Update.docx
+Wind down DataCorp Cloud provisioning following scope reversion decision,James Tan,—,Open,09_Scope_Amendment_Confirmation.docx
+"Descope data-quality monitoring to Phase 2 and revert to three-deliverable scope with 15 March 2026 deadline",—,2026-03-15,Open,09_Scope_Amendment_Confirmation.docx
+# Generated: 2026-04-24T06:33:38.831Z | Sources: 5 file(s) | Last ingestion: 2026-04-24T06:29:28.132Z

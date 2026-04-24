@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-04-24T06:33:43.519Z",
+  "topic": "Project Horizon",
+  "publish_dir": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\collections\\default_9a0a9d\\published",
+  "files": [
+    {
+      "type": "handover-pack",
+      "path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\collections\\default_9a0a9d\\published\\handover-pack-project-horizon.md"
+    },
+    {
+      "type": "decision-log",
+      "path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\collections\\default_9a0a9d\\published\\decision-log.md"
+    },
+    {
+      "type": "open-actions",
+      "path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\collections\\default_9a0a9d\\published\\open-actions.csv"
+    },
+    {
+      "type": "risk-register",
+      "path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\collections\\default_9a0a9d\\published\\risk-register.csv"
+    }
+  ]
+}

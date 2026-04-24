@@ -457,3 +457,7 @@
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T02:51:42.327Z"}
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T04:28:43.627Z"}
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T05:47:03.231Z"}
+{"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T06:27:56.791Z"}
+{"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T06:40:18.924Z"}
+{"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T06:47:06.813Z"}
+{"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T06:47:48.199Z"}
