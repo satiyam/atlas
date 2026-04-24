@@ -173,11 +173,7 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
       )}
 
       {ingesting && (
-        <div style={{ background: COLORS.bg, borderRadius: 6, padding: 12, marginTop: 12, border: `1px solid ${COLORS.accent}` }}>
-          <div style={{ color: COLORS.accent, fontSize: 13, fontWeight: 700 }}>
-            <span style={{ animation: 'pulse 1.2s infinite' }}>●</span> Ingesting — this can take anywhere from seconds to minutes depending on folder size and entity-extraction API calls. The UI will update when the pipeline completes.
-          </div>
-        </div>
+        <IngestionProgress />
       )}
 
       {!ingesting && ingestionResult && (
@@ -504,28 +500,86 @@ function ChatPanel() {
   )
 }
 
-const SYNTHESIS_OPTIONS = [
-  { value: 'podcast', label: 'Podcast Script', placeholder: 'Topic (e.g. Project Phoenix)' },
-  { value: 'brief', label: 'Project Brief', placeholder: 'Project name (e.g. Project Phoenix)' },
-  { value: 'handover', label: 'Handover Document', placeholder: 'Person name (e.g. Sarah Chen)' },
-  { value: 'benchmark', label: 'Benchmark Report', placeholder: 'Topic (e.g. Vendor selection)' },
+const INGESTION_STAGES = [
+  { id: 'crawl', label: 'Crawling files' },
+  { id: 'parse', label: 'Parsing content' },
+  { id: 'extract', label: 'Extracting entities (Claude API)' },
+  { id: 'merge', label: 'Merging into graph' },
+  { id: 'embed', label: 'Building vector index' },
 ]
 
+function IngestionProgress() {
+  const [elapsed, setElapsed] = useState(0)
+  const [stageIdx, setStageIdx] = useState(0)
+
+  useEffect(() => {
+    const start = Date.now()
+    // Advance visible stage roughly every 8s to give users a sense of progress
+    const stageTick = setInterval(() => {
+      setStageIdx(i => Math.min(i + 1, INGESTION_STAGES.length - 1))
+    }, 8000)
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => { clearInterval(stageTick); clearInterval(timer) }
+  }, [])
+
+  return (
+    <div style={{ background: COLORS.bg, borderRadius: 6, padding: 12, marginTop: 12, border: `1px solid ${COLORS.accent}` }}>
+      <div style={{ color: COLORS.accent, fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+        Ingesting — {elapsed}s elapsed
+      </div>
+      {INGESTION_STAGES.map((s, i) => {
+        const done = i < stageIdx
+        const active = i === stageIdx
+        return (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 4,
+            color: done ? COLORS.external : active ? COLORS.text : COLORS.muted }}>
+            <span>{done ? '✓' : active ? '●' : '○'}</span>
+            <span>{s.label}{active ? '…' : ''}</span>
+          </div>
+        )
+      })}
+      <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 8 }}>
+        The UI will update automatically when the pipeline completes.
+      </div>
+    </div>
+  )
+}
+
+const CONTINUITY_OPTIONS = [
+  { value: 'handover', label: 'Handover Pack', placeholder: 'Person name (e.g. Sarah Chen)', ext: 'md', key: 'document' },
+  { value: 'decision-log', label: 'Decision Log', placeholder: 'Topic or project (e.g. Project Phoenix)', ext: 'md', key: 'document' },
+  { value: 'open-actions', label: 'Open Actions Register', placeholder: 'Topic or project (e.g. Project Phoenix)', ext: 'csv', key: 'csv' },
+  { value: 'risk-register', label: 'Risk Register', placeholder: 'Topic or project (e.g. Project Phoenix)', ext: 'csv', key: 'csv' },
+]
+
+const OTHER_SYNTHESIS_OPTIONS = [
+  { value: 'podcast', label: 'Podcast Script', placeholder: 'Topic (e.g. Project Phoenix)', ext: 'md', key: 'script' },
+  { value: 'brief', label: 'Project Brief', placeholder: 'Project name (e.g. Project Phoenix)', ext: 'md', key: 'brief' },
+  { value: 'benchmark', label: 'Benchmark Report', placeholder: 'Topic (e.g. Vendor selection)', ext: 'md', key: 'report' },
+]
+
+const ALL_SYNTHESIS_OPTIONS = [...CONTINUITY_OPTIONS, ...OTHER_SYNTHESIS_OPTIONS]
+
 function SynthesisPanel() {
-  const [type, setType] = useState('podcast')
+  const [type, setType] = useState('handover')
   const [topic, setTopic] = useState('')
   const [output, setOutput] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishResult, setPublishResult] = useState(null)
+  const [publishPath, setPublishPath] = useState('')
 
-  const current = SYNTHESIS_OPTIONS.find(o => o.value === type)
+  const current = ALL_SYNTHESIS_OPTIONS.find(o => o.value === type)
 
   const generate = async () => {
     if (!topic.trim() || generating) return
     setGenerating(true)
     setOutput('')
+    setPublishResult(null)
     try {
       const result = await apiCall('/api/synthesise', { method: 'POST', body: { type, topic: topic.trim() } })
-      setOutput(result.script || result.brief || result.document || result.report || JSON.stringify(result, null, 2))
+      const text = result[current.key] || result.script || result.brief || result.document || result.report || JSON.stringify(result, null, 2)
+      setOutput(text)
     } catch (err) {
       setOutput(`Error: ${err.message}`)
     } finally {
@@ -533,12 +587,29 @@ function SynthesisPanel() {
     }
   }
 
+  const publishAll = async () => {
+    if (!topic.trim() || publishing) return
+    setPublishing(true)
+    setPublishResult(null)
+    try {
+      const body = { topic: topic.trim() }
+      if (publishPath.trim()) body.publishPath = publishPath.trim()
+      const result = await apiCall('/api/publish', { method: 'POST', body })
+      setPublishResult({ ok: true, dir: result.publish_dir, count: result.files?.length ?? 0 })
+    } catch (err) {
+      setPublishResult({ ok: false, error: err.message })
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const download = () => {
-    const blob = new Blob([output], { type: 'text/markdown' })
+    const isCsv = current.ext === 'csv'
+    const blob = new Blob([output], { type: isCsv ? 'text/csv' : 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `atlas-${type}-${topic.replace(/\s+/g, '-').toLowerCase()}.md`
+    a.download = `atlas-${type}-${topic.replace(/\s+/g, '-').toLowerCase()}.${current.ext}`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -546,8 +617,12 @@ function SynthesisPanel() {
   return (
     <div style={{ ...PANEL_STYLE, marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 20 }}>✨</span>
-        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 700 }}>Synthesis</h2>
+        <span style={{ fontSize: 20 }}>📋</span>
+        <h2 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 700 }}>Continuity Artifacts</h2>
+      </div>
+
+      <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 10 }}>
+        PRIMARY — <span style={{ color: COLORS.accent }}>Handover Pack · Decision Log · Open Actions · Risk Register</span>
       </div>
 
       <select value={type} onChange={e => setType(e.target.value)} style={{
@@ -555,13 +630,19 @@ function SynthesisPanel() {
         border: `1px solid ${COLORS.border}`, borderRadius: 6,
         padding: '8px 12px', fontSize: 13, marginBottom: 8,
       }}>
-        {SYNTHESIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <optgroup label="Continuity Artifacts (primary)">
+          {CONTINUITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </optgroup>
+        <optgroup label="Other Synthesis">
+          {OTHER_SYNTHESIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </optgroup>
       </select>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <input
           value={topic}
           onChange={e => setTopic(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && generate()}
           placeholder={current.placeholder}
           style={{
             flex: 1, background: COLORS.bg, color: COLORS.text,
@@ -590,9 +671,49 @@ function SynthesisPanel() {
             marginTop: 8, background: 'transparent', color: COLORS.accent,
             border: `1px solid ${COLORS.accent}`, borderRadius: 6,
             padding: '6px 14px', cursor: 'pointer', fontSize: 12,
-          }}>📥 Download .md</button>
+          }}>📥 Download .{current.ext}</button>
         </>
       )}
+
+      <div style={{ marginTop: 16, borderTop: `1px solid ${COLORS.border}`, paddingTop: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Publish All Artifacts to Disk</div>
+        <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 8 }}>
+          Generates all 4 continuity artifacts and writes them to the published/ folder (or a custom path below).
+          Use this to share outputs with your team via a synced folder.
+        </div>
+        <input
+          value={publishPath}
+          onChange={e => setPublishPath(e.target.value)}
+          placeholder="Optional: custom publish path (e.g. C:\Users\You\OneDrive\Atlas-Outputs)"
+          style={{
+            width: '100%', background: COLORS.bg, color: COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            padding: '8px 12px', fontSize: 12, outline: 'none',
+            marginBottom: 8, boxSizing: 'border-box',
+          }}
+        />
+        <button onClick={publishAll} disabled={publishing || !topic.trim()} style={{
+          background: publishing ? 'transparent' : COLORS.external, color: publishing ? COLORS.muted : '#fff',
+          border: `1px solid ${publishing ? COLORS.border : COLORS.external}`,
+          borderRadius: 6, padding: '8px 18px', fontWeight: 700, fontSize: 13,
+          cursor: (publishing || !topic.trim()) ? 'not-allowed' : 'pointer',
+          opacity: !topic.trim() ? 0.5 : 1,
+        }}>
+          {publishing ? '⏳ Publishing...' : '📤 Publish All to Disk'}
+        </button>
+        {publishResult && (
+          <div style={{
+            marginTop: 8, padding: 10, borderRadius: 6, fontSize: 12,
+            background: publishResult.ok ? '#0f2a1f' : '#2a1515',
+            border: `1px solid ${publishResult.ok ? COLORS.external : COLORS.red}`,
+            color: publishResult.ok ? '#86efac' : '#fecaca',
+          }}>
+            {publishResult.ok
+              ? `✓ ${publishResult.count} file(s) written to: ${publishResult.dir}`
+              : `⚠ Publish failed: ${publishResult.error}`}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

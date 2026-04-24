@@ -21,6 +21,10 @@ const podcastWriter = require('./synthesis/podcast_writer')
 const briefGenerator = require('./synthesis/brief_generator')
 const handoverBuilder = require('./synthesis/handover_builder')
 const benchmarkReporter = require('./synthesis/benchmark_reporter')
+const decisionLogBuilder = require('./synthesis/decision_log_builder')
+const actionsRegisterBuilder = require('./synthesis/actions_register_builder')
+const riskRegisterBuilder = require('./synthesis/risk_register_builder')
+const artifactPublisher = require('./synthesis/artifact_publisher')
 const dryRunEngine = require('./ingestion/dry_run')
 const crawler = require('./ingestion/crawler')
 const collectionManager = require('./collections/collection_manager')
@@ -159,8 +163,41 @@ app.post('/api/synthesise', handle(async (req) => {
   if (type === 'brief') return briefGenerator.generateProjectBrief(topic)
   if (type === 'handover') return handoverBuilder.generateHandoverDoc(topic)
   if (type === 'benchmark') return benchmarkReporter.generateBenchmarkReport(topic)
+  if (type === 'decision-log') return decisionLogBuilder.generateDecisionLog(topic)
+  if (type === 'open-actions') return actionsRegisterBuilder.generateActionsRegister(topic)
+  if (type === 'risk-register') return riskRegisterBuilder.generateRiskRegister(topic)
 
   throw new Error(`Unsupported synthesis type: ${type}`)
+}))
+
+app.post('/api/publish', handle(async (req) => {
+  const { topic, publishPath } = req.body || {}
+
+  const [handover, decisionLog, actionsRegister, riskRegister] = await Promise.all([
+    handoverBuilder.generateHandoverDoc(topic || ''),
+    decisionLogBuilder.generateDecisionLog(topic || ''),
+    actionsRegisterBuilder.generateActionsRegister(topic || ''),
+    riskRegisterBuilder.generateRiskRegister(topic || ''),
+  ])
+
+  const result = artifactPublisher.publishAll({
+    handover,
+    decisionLog,
+    actionsRegister,
+    riskRegister,
+    topic,
+    overridePath: publishPath || null,
+  })
+
+  return { ok: true, ...result }
+}))
+
+app.patch('/api/collections/:id/publish-path', handle(async (req) => {
+  const id = req.params.id
+  const { publishPath } = req.body || {}
+  if (!publishPath) throw new Error('publishPath is required')
+  const meta = collectionManager.updateCollection(id, { publishPath })
+  return { ok: true, collection: meta }
 }))
 
 app.get('/api/stats', handle(() => {

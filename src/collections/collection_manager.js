@@ -71,6 +71,7 @@ function getPaths(id) {
     ingestionLog:  path.join(base, 'logs', 'ingestion_log.jsonl'),
     auditLog:      path.join(base, 'logs', 'audit_log.jsonl'),
     configFile:    path.join(base, 'config', 'ingestion_config.json'),
+    publishedDir:  path.join(base, 'published'),
   }
 }
 
@@ -209,7 +210,7 @@ function updateCollection(id, patch) {
   const index = readIndex()
   const found = index.collections.find(c => c.id === id)
   if (!found) throw new Error(`Unknown collection: ${id}`)
-  const allowed = ['name', 'rootPath']
+  const allowed = ['name', 'rootPath', 'publishPath']
   for (const k of allowed) {
     if (patch[k] !== undefined) found[k] = patch[k]
   }

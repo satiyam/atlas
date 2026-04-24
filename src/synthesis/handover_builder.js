@@ -72,10 +72,23 @@ function buildFallbackHandover(personName, ctx, error) {
   if (ctx.otherPeople.length === 0) lines.push('_No collaborators identified from the graph._')
   for (const p of ctx.otherPeople) lines.push(`- ${p.attributes?.name || p.id}${p.attributes?.role ? ` — ${p.attributes.role}` : ''}`)
 
-  lines.push('', '## 6. Pending Items')
+  lines.push('', '## 6. Current Status')
+  lines.push('_Status not explicitly captured — review the source documents above for the latest state._')
+
+  lines.push('', '## 7. Risks')
+  lines.push('_No explicit risks linked to this person in the graph. Review project risk registers._')
+
+  lines.push('', '## 8. Open Actions')
+  lines.push('_No open actions explicitly linked to this person in the graph. Review meeting notes._')
+
+  lines.push('', '## 9. Stakeholders')
+  if (ctx.otherPeople.length === 0) lines.push('_No stakeholders identified from the graph._')
+  for (const p of ctx.otherPeople) lines.push(`- ${p.attributes?.name || p.id}${p.attributes?.role ? ` — ${p.attributes.role}` : ''}`)
+
+  lines.push('', '## 10. Pending Items')
   lines.push('_Pending items not explicitly captured. Review the source documents above._')
 
-  lines.push('', '## 7. Recommended Next Steps')
+  lines.push('', '## 11. Recommended Next Steps')
   lines.push('- Schedule knowledge-transfer sessions covering the projects and decisions listed above.')
   lines.push('- Re-ingest recent folders to pick up any new documents owned by this person.')
 
@@ -97,14 +110,18 @@ Related meetings: ${JSON.stringify(ctx.meetings)}
 Related people: ${JSON.stringify(ctx.otherPeople)}
 Edges: ${JSON.stringify(ctx.edges)}
 
-Produce a markdown document with exactly these 7 sections:
+Produce a markdown document with exactly these 11 sections:
 ## 1. Role Overview
 ## 2. Active Projects
 ## 3. Key Decisions Made
 ## 4. Documents Owned
 ## 5. Key Relationships
-## 6. Pending Items
-## 7. Recommended Next Steps
+## 6. Current Status
+## 7. Risks
+## 8. Open Actions
+## 9. Stakeholders
+## 10. Pending Items
+## 11. Recommended Next Steps
 
 Include inline citations after factual claims: [Source: filename]
 `.trim()

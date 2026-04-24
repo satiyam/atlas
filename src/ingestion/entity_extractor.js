@@ -242,8 +242,9 @@ async function extractEntities(parsedFile) {
     return null
   }
 
+  const CHUNK_SIZE = 6000
+  const CHUNK_OVERLAP = 500
   const ingestedAt = new Date().toISOString()
-  const snippet = content.slice(0, 6000)
 
   const systemPrompt = `You are an entity extractor for a knowledge graph.
 Extract entities from the provided content following the schema below.
@@ -271,54 +272,83 @@ Rules:
 - If you are close to the token limit, stop at a clean closing } — prefer fewer complete entities over a truncated response.
 - The caller attaches source_file, ingested_at, and checksum — omit them from your output.`
 
-  const userPrompt = `Source file: ${sourceFile}
+  // Build overlapping chunks so dense files beyond 6000 chars are fully covered
+  const chunks = []
+  let offset = 0
+  while (offset < content.length) {
+    chunks.push(content.slice(offset, offset + CHUNK_SIZE))
+    if (offset + CHUNK_SIZE >= content.length) break
+    offset += CHUNK_SIZE - CHUNK_OVERLAP
+  }
+
+  const allNodes = []
+  const allEdges = []
+  const seenNodeIds = new Set()
+  const seenEdgeKeys = new Set()
+
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const userPrompt = `Source file: ${sourceFile}${chunks.length > 1 ? ` (chunk ${ci + 1}/${chunks.length})` : ''}
 
 Content:
-${snippet}`
+${chunks[ci]}`
 
-  try {
-    const response = await callClaudeWithRetry({
-      system: systemPrompt,
-      user: userPrompt,
-    })
+    try {
+      const response = await callClaudeWithRetry({ system: systemPrompt, user: userPrompt })
+      const text = response?.content?.[0]?.text || ''
+      const parsed = extractJsonBlock(text)
 
-    const text = response?.content?.[0]?.text || ''
-    const parsed = extractJsonBlock(text)
-
-    if (!parsed || !Array.isArray(parsed.nodes)) {
-      const preview = (text || '').slice(0, 400).replace(/\s+/g, ' ')
-      console.log(`[entity_extractor] parse_error for ${sourceFile} — Haiku response preview: ${preview || '(empty)'}`)
-      return {
-        nodes: [],
-        edges: [],
-        source_file: sourceFile,
-        checksum,
-        parse_error: 'could not parse JSON response',
-        raw_preview: preview || null,
+      if (!parsed || !Array.isArray(parsed.nodes)) {
+        const preview = (text || '').slice(0, 400).replace(/\s+/g, ' ')
+        console.log(`[entity_extractor] parse_error for ${sourceFile} chunk ${ci + 1} — preview: ${preview || '(empty)'}`)
+        continue
       }
+
+      for (const n of parsed.nodes) {
+        const id = n.id || `${(n.type || 'unknown').toLowerCase()}_${slugify(n.attributes?.name || n.attributes?.title || n.attributes?.label || 'unnamed')}`
+        if (seenNodeIds.has(id)) continue
+        seenNodeIds.add(id)
+        allNodes.push({
+          id,
+          type: n.type,
+          attributes: n.attributes || {},
+          source_file: sourceFile,
+          ingested_at: ingestedAt,
+          checksum,
+        })
+      }
+
+      if (Array.isArray(parsed.edges)) {
+        for (const e of parsed.edges) {
+          const key = `${e.source_id}::${e.target_id}::${e.relationship_type}`
+          if (seenEdgeKeys.has(key)) continue
+          seenEdgeKeys.add(key)
+          allEdges.push({
+            source_id: e.source_id,
+            target_id: e.target_id,
+            relationship_type: e.relationship_type,
+            source_file: sourceFile,
+            ingested_at: ingestedAt,
+          })
+        }
+      }
+    } catch (err) {
+      // Return what we have so far rather than dropping all chunks
+      if (ci === 0) return { nodes: [], edges: [], source_file: sourceFile, checksum, api_error: err.message }
+      console.log(`[entity_extractor] chunk ${ci + 1} failed for ${sourceFile} — ${err.message}`)
     }
-
-    const nodes = parsed.nodes.map(n => ({
-      id: n.id || `${(n.type || 'unknown').toLowerCase()}_${slugify(n.attributes?.name || n.attributes?.title || n.attributes?.label || 'unnamed')}`,
-      type: n.type,
-      attributes: n.attributes || {},
-      source_file: sourceFile,
-      ingested_at: ingestedAt,
-      checksum,
-    }))
-
-    const edges = Array.isArray(parsed.edges) ? parsed.edges.map(e => ({
-      source_id: e.source_id,
-      target_id: e.target_id,
-      relationship_type: e.relationship_type,
-      source_file: sourceFile,
-      ingested_at: ingestedAt,
-    })) : []
-
-    return { nodes, edges, source_file: sourceFile, checksum }
-  } catch (err) {
-    return { nodes: [], edges: [], source_file: sourceFile, checksum, api_error: err.message }
   }
+
+  if (allNodes.length === 0 && chunks.length > 0) {
+    return {
+      nodes: [],
+      edges: [],
+      source_file: sourceFile,
+      checksum,
+      parse_error: 'could not parse JSON response from any chunk',
+    }
+  }
+
+  return { nodes: allNodes, edges: allEdges, source_file: sourceFile, checksum }
 }
 
 async function extractBatch(redactedFiles) {
