@@ -456,3 +456,4 @@
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T02:10:52.056Z"}
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T02:51:42.327Z"}
 {"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T04:28:43.627Z"}
+{"event":"GRAPH_RESET","collection_id":"default_9a0a9d","cleared":["nodes.json","edges.json","embeddings.json","delta_log.jsonl","ingestion_log.jsonl"],"timestamp":"2026-04-24T05:47:03.231Z"}

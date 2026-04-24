@@ -70,6 +70,18 @@ function acknowledge(id) {
   return found
 }
 
+function clearAll() {
+  const key = collectionKey()
+  _byCollection.set(key, [])
+  try {
+    const file = alertsFile()
+    const dir = path.dirname(file)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(file, '', 'utf8')
+  } catch (_) {}
+  return { ok: true, cleared_collection: key }
+}
+
 function _resetForTests() { _byCollection.clear() }
 
-module.exports = { addAlert, listAlerts, acknowledge, _resetForTests }
+module.exports = { addAlert, listAlerts, acknowledge, clearAll, _resetForTests }
