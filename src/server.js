@@ -325,6 +325,8 @@ app.post('/api/alerts/:id/ack', handle((req) => {
   return { ok: true, alert }
 }))
 
+app.post('/api/alerts/clear', handle(() => alertsStore.clearAll()))
+
 app.get('/api/recent-files', handle(() => {
   const nodes = Object.values(graphStore.readNodes())
   const fileSet = new Map()

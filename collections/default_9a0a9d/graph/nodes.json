@@ -1,85 +1,4 @@
 {
-  "person_sarah_chen": {
-    "id": "person_sarah_chen",
-    "type": "PERSON",
-    "attributes": {
-      "name": "Sarah Chen",
-      "role": "Architecture Designer",
-      "team": "Temus",
-      "expertise_tags": [
-        "architecture",
-        "data platform",
-        "cloud"
-      ]
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
-    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:45.997Z",
-    "updated_at": "2026-04-24T04:30:09.174Z"
-  },
-  "person_james_tan": {
-    "id": "person_james_tan",
-    "type": "PERSON",
-    "attributes": {
-      "name": "James Tan",
-      "role": "Cloud Migration Lead",
-      "team": "Temus"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
-    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:46.023Z",
-    "updated_at": "2026-04-24T04:30:09.219Z"
-  },
-  "person_marcus_lee": {
-    "id": "person_marcus_lee",
-    "type": "PERSON",
-    "attributes": {
-      "name": "Marcus Lee",
-      "role": "Handover Documentation Lead",
-      "team": "Temus",
-      "expertise_tags": [
-        "Unity Catalog governance",
-        "SAP S/4HANA ingestion",
-        "DataCorp Cloud provisioning",
-        "medallion-layer architecture"
-      ]
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
-    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:46.057Z",
-    "updated_at": "2026-04-24T04:30:09.264Z"
-  },
-  "person_priya_ramesh": {
-    "id": "person_priya_ramesh",
-    "type": "PERSON",
-    "attributes": {
-      "name": "Priya Ramesh",
-      "role": "Temus PM",
-      "team": "Temus"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
-    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:46.093Z",
-    "updated_at": "2026-04-24T04:30:09.073Z"
-  },
-  "person_jun_park": {
-    "id": "person_jun_park",
-    "type": "PERSON",
-    "attributes": {
-      "name": "Jun Park",
-      "role": "NorthWind CTO",
-      "team": "NorthWind"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
-    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:46.129Z",
-    "updated_at": "2026-04-24T04:30:09.127Z"
-  },
   "project_horizon": {
     "id": "project_horizon",
     "type": "PROJECT",
@@ -89,65 +8,65 @@
       "start_date": "2026-01-15",
       "end_date": "2026-03-15",
       "owner_id": "person_sarah_chen",
-      "description": "Project with three deliverables, reverted to original scope and TechCorp Cloud vendor"
+      "description": "Client project with reverted scope to original three deliverables"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
     "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:29:46.169Z",
-    "updated_at": "2026-04-24T04:30:09.311Z"
+    "created_at": "2026-04-24T05:56:51.477Z",
+    "updated_at": "2026-04-24T05:58:25.629Z"
   },
   "decision_vendor_techcorp": {
     "id": "decision_vendor_techcorp",
     "type": "DECISION",
     "attributes": {
-      "summary": "Cloud vendor selection: TechCorp Cloud for Databricks workspace cluster",
-      "date": "2026-01-15",
+      "summary": "Selected TechCorp Cloud as cloud vendor for Databricks workspace cluster",
       "context": "Existing Temus master agreement, preferred discount tier, and alignment with NorthWind's current Azure footprint",
       "made_by": [
         "person_sarah_chen"
       ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\01_Project_Scope_v1.docx",
-    "ingested_at": "2026-04-24T04:29:11.764Z",
+    "ingested_at": "2026-04-24T05:55:35.620Z",
     "checksum": "6540acdf379e606fb4c5d7995333185f3b9ec7e3952d41f0cfa71eb86b4f24e6",
-    "created_at": "2026-04-24T04:29:46.206Z"
+    "created_at": "2026-04-24T05:56:51.505Z"
   },
-  "topic_databricks": {
-    "id": "topic_databricks",
+  "topic_databricks_platform": {
+    "id": "topic_databricks_platform",
     "type": "TOPIC",
     "attributes": {
-      "label": "Databricks",
-      "description": "Databricks workspace provisioning on DataCorp Cloud (80% complete)"
+      "label": "Databricks Platform",
+      "description": "Unity Catalog governance, medallion architecture, and ingestion pipelines"
     },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
-    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:46.229Z"
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\01_Project_Scope_v1.docx",
+    "ingested_at": "2026-04-24T05:55:35.620Z",
+    "checksum": "6540acdf379e606fb4c5d7995333185f3b9ec7e3952d41f0cfa71eb86b4f24e6",
+    "created_at": "2026-04-24T05:56:51.539Z"
   },
-  "topic_power_bi": {
-    "id": "topic_power_bi",
+  "topic_power_bi_reporting": {
+    "id": "topic_power_bi_reporting",
     "type": "TOPIC",
     "attributes": {
-      "label": "Power BI",
-      "description": "Power BI workspace and reports (50% complete)"
+      "label": "Power BI Reporting",
+      "description": "Operational dashboard, executive summary, and finance reconciliation report"
     },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
-    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:46.265Z"
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\01_Project_Scope_v1.docx",
+    "ingested_at": "2026-04-24T05:55:35.620Z",
+    "checksum": "6540acdf379e606fb4c5d7995333185f3b9ec7e3952d41f0cfa71eb86b4f24e6",
+    "created_at": "2026-04-24T05:56:51.569Z"
   },
   "topic_knowledge_transfer": {
     "id": "topic_knowledge_transfer",
     "type": "TOPIC",
     "attributes": {
       "label": "Knowledge Transfer",
-      "description": "Risks and mitigation related to team transitions and documentation"
+      "description": "Documentation, runbooks, and shadowing period for client engineers"
     },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
-    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:46.299Z"
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\01_Project_Scope_v1.docx",
+    "ingested_at": "2026-04-24T05:55:39.900Z",
+    "checksum": "6540acdf379e606fb4c5d7995333185f3b9ec7e3952d41f0cfa71eb86b4f24e6",
+    "created_at": "2026-04-24T05:56:51.599Z",
+    "updated_at": "2026-04-24T05:57:23.147Z"
   },
   "person_li_wei": {
     "id": "person_li_wei",
@@ -155,20 +74,29 @@
     "attributes": {
       "name": "Li Wei",
       "team": "NorthWind",
-      "role": "Finance access management"
+      "role": "Finance team representative"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:46.332Z"
+    "created_at": "2026-04-24T05:56:51.616Z",
+    "updated_at": "2026-04-24T05:57:23.175Z"
   },
-  "meeting_kickoff_horizon": {
-    "id": "meeting_kickoff_horizon",
+  "meeting_kickoff_20jan2026": {
+    "id": "meeting_kickoff_20jan2026",
     "type": "MEETING",
     "attributes": {
       "title": "Kickoff Meeting — Project Horizon",
       "date": "2026-01-20T10:00:00+08:00",
       "duration_minutes": null,
+      "attendee_ids": [
+        "person_sarah_chen",
+        "person_james_tan",
+        "person_marcus_lee",
+        "person_priya_ramesh",
+        "person_jun_park",
+        "person_li_wei"
+      ],
       "action_items": [
         "James Tan to set up Databricks workspace on TechCorp Cloud by 25 January",
         "Marcus Lee to produce Unity Catalog governance baseline by 30 January",
@@ -176,396 +104,510 @@
       ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
-    "ingested_at": "2026-04-24T04:29:11.769Z",
+    "ingested_at": "2026-04-24T05:55:35.659Z",
     "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
-    "created_at": "2026-04-24T04:29:46.361Z"
+    "created_at": "2026-04-24T05:56:51.650Z"
   },
   "decision_scope_confirmed": {
     "id": "decision_scope_confirmed",
     "type": "DECISION",
     "attributes": {
-      "summary": "Project scope confirmed with three deliverables and alignment with NorthWind's 2026 data strategy",
+      "summary": "Project scope confirmed with three deliverables as approved; NorthWind alignment confirmed with 2026 data strategy",
       "date": "2026-01-20T10:00:00+08:00",
-      "context": "Priya walked through approved scope document; Jun Park confirmed alignment with NorthWind strategy; no changes requested"
+      "context": "Priya walked through the three deliverables in the approved scope document. Jun Park confirmed alignment with NorthWind's 2026 data strategy. No changes requested.",
+      "made_by": [
+        "person_priya_ramesh",
+        "person_jun_park"
+      ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
-    "ingested_at": "2026-04-24T04:29:11.769Z",
+    "ingested_at": "2026-04-24T05:55:39.902Z",
     "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
-    "created_at": "2026-04-24T04:29:46.396Z"
+    "created_at": "2026-04-24T05:56:51.681Z",
+    "updated_at": "2026-04-24T05:57:23.233Z"
   },
   "decision_technical_approach": {
     "id": "decision_technical_approach",
     "type": "DECISION",
     "attributes": {
-      "summary": "Target architecture approved: Databricks on TechCorp Cloud, Unity Catalog for governance, bronze/silver/gold layering, Power BI service",
+      "summary": "Technical approach approved: Databricks on TechCorp Cloud, Unity Catalog for governance, bronze/silver/gold layering, Power BI service for reports",
       "date": "2026-01-20T10:00:00+08:00",
-      "context": "Sarah presented architecture; Li Wei raised disaster recovery question to be addressed in architecture design document"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
-    "ingested_at": "2026-04-24T04:29:11.769Z",
-    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
-    "created_at": "2026-04-24T04:29:46.440Z"
-  },
-  "decision_timeline": {
-    "id": "decision_timeline",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Project timeline set with final delivery 15 March 2026 and mid-engagement checkpoint 15 February 2026",
-      "date": "2026-01-20T10:00:00+08:00"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
-    "ingested_at": "2026-04-24T04:29:11.769Z",
-    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
-    "created_at": "2026-04-24T04:29:46.479Z"
-  },
-  "decision_scope_revision": {
-    "id": "decision_scope_revision",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Approved scope revision adding fourth deliverable for data-quality monitoring with automated freshness checks, schema drift detection, and Power BI alerting",
-      "date": "2026-02-10",
-      "context": "Mid-engagement checkpoint review identified data-quality monitoring as strategic priority for 2026",
-      "outcome": "Scope expanded to four deliverables"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
-    "ingested_at": "2026-04-24T04:29:16.805Z",
-    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
-    "created_at": "2026-04-24T04:29:46.521Z"
-  },
-  "decision_timeline_revision": {
-    "id": "decision_timeline_revision",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Final delivery date revised from 15 March 2026 to 30 March 2026",
-      "date": "2026-02-10",
-      "context": "Consequence of expanded scope with additional data-quality monitoring deliverable",
-      "outcome": "New target date accepted by all parties"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
-    "ingested_at": "2026-04-24T04:29:16.805Z",
-    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
-    "created_at": "2026-04-24T04:29:46.557Z"
-  },
-  "decision_vendor_change": {
-    "id": "decision_vendor_change",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Databricks cluster vendor changed from TechCorp Cloud to DataCorp Cloud",
-      "date": "2026-02-10",
-      "context": "Pricing review completed 5 February; DataCorp Cloud offers 23% annualised saving at committed scale",
-      "outcome": "DataCorp Cloud selected as new vendor"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
-    "ingested_at": "2026-04-24T04:29:16.805Z",
-    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
-    "created_at": "2026-04-24T04:29:46.593Z"
-  },
-  "meeting_steering_committee_feb10": {
-    "id": "meeting_steering_committee_feb10",
-    "type": "MEETING",
-    "attributes": {
-      "title": "Steering Committee Minutes - Project Horizon",
-      "date": "2026-02-10",
-      "duration_minutes": null,
-      "action_items": [
-        "Sarah Chen: revised architecture design document by 20 February",
-        "James Tan: DataCorp Cloud provisioning complete by 17 February",
-        "Priya Ramesh: update Risk Register to reflect new vendor; circulate to steering attendees"
+      "context": "Sarah presented the target architecture. Li Wei requested disaster recovery details to be covered in the architecture design document.",
+      "made_by": [
+        "person_sarah_chen"
       ]
     },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
-    "ingested_at": "2026-04-24T04:29:16.805Z",
-    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
-    "created_at": "2026-04-24T04:29:46.632Z"
-  },
-  "decision_steering_10feb": {
-    "id": "decision_steering_10feb",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Mid-engagement steering revisions - addition of data-quality monitoring deliverable and timeline adjustment",
-      "date": "2026-02-10",
-      "context": "Steering committee review and approval of Project Horizon architecture design updates",
-      "outcome": "Data-quality monitoring added as 4th deliverable; final delivery date revised from 15 March to 30 March 2026"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
-    "ingested_at": "2026-04-24T04:29:19.832Z",
-    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
-    "created_at": "2026-04-24T04:29:46.670Z"
-  },
-  "decision_architecture_signoff": {
-    "id": "decision_architecture_signoff",
-    "type": "DECISION",
-    "attributes": {
-      "summary": "Architecture design sign-off for Project Horizon v2.0",
-      "date": "2026-02-20",
-      "context": "Final approval of architecture design including DataCorp Cloud platform, Databricks workspace, and medallion architecture"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
-    "ingested_at": "2026-04-24T04:29:19.832Z",
-    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
-    "created_at": "2026-04-24T04:29:46.712Z"
-  },
-  "topic_cloud_platform": {
-    "id": "topic_cloud_platform",
-    "type": "TOPIC",
-    "attributes": {
-      "label": "Cloud Platform",
-      "description": "DataCorp Cloud infrastructure, Databricks workspace, and cloud architecture design"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
-    "ingested_at": "2026-04-24T04:29:19.832Z",
-    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
-    "created_at": "2026-04-24T04:29:46.757Z"
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
+    "ingested_at": "2026-04-24T05:55:39.902Z",
+    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
+    "created_at": "2026-04-24T05:56:51.711Z",
+    "updated_at": "2026-04-24T05:57:23.262Z"
   },
   "topic_data_architecture": {
     "id": "topic_data_architecture",
     "type": "TOPIC",
     "attributes": {
       "label": "Data Architecture",
-      "description": "Medallion architecture (bronze/silver/gold), data ingestion, and data quality"
+      "description": "Databricks, Unity Catalog, cloud data platform design"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
+    "ingested_at": "2026-04-24T05:55:35.659Z",
+    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
+    "created_at": "2026-04-24T05:56:51.741Z"
+  },
+  "topic_governance": {
+    "id": "topic_governance",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Governance",
+      "description": "Unity Catalog governance baseline"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
+    "ingested_at": "2026-04-24T05:55:39.902Z",
+    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
+    "created_at": "2026-04-24T05:56:51.773Z",
+    "updated_at": "2026-04-24T05:57:23.325Z"
+  },
+  "topic_infrastructure": {
+    "id": "topic_infrastructure",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Infrastructure & Data Governance",
+      "description": "Technical risks including permissions drift and data residency"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
+    "ingested_at": "2026-04-24T05:55:48.831Z",
+    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
+    "created_at": "2026-04-24T05:56:51.806Z"
+  },
+  "meeting_steering_committee_10feb": {
+    "id": "meeting_steering_committee_10feb",
+    "type": "MEETING",
+    "attributes": {
+      "title": "Steering Committee — Project Horizon",
+      "date": "2026-02-10",
+      "duration_minutes": null,
+      "action_items": [
+        "Sarah Chen: revised architecture design document by 20 February",
+        "James Tan: DataCorp Cloud provisioning complete by 17 February",
+        "Priya Ramesh: update Risk Register to reflect new vendor"
+      ]
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:40.697Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:56:51.837Z"
+  },
+  "decision_scope_revision": {
+    "id": "decision_scope_revision",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Approved scope revision to add fourth deliverable: data-quality monitoring with automated freshness checks, schema drift detection, and Power BI alerting",
+      "date": "2026-02-10",
+      "context": "Mid-engagement checkpoint review; identified as strategic priority for 2026",
+      "outcome": "Scope expanded from three to four deliverables"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:45.620Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:56:51.868Z",
+    "updated_at": "2026-04-24T05:57:23.374Z"
+  },
+  "decision_timeline_extension": {
+    "id": "decision_timeline_extension",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Extended final delivery date from 15 March 2026 to 30 March 2026",
+      "date": "2026-02-10",
+      "context": "Extension required due to expanded scope with fourth deliverable",
+      "outcome": "All parties accepted new target of 30 March 2026"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:40.697Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:56:51.902Z"
+  },
+  "decision_vendor_change": {
+    "id": "decision_vendor_change",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Changed Databricks cluster vendor from TechCorp Cloud to DataCorp Cloud for 23% annualised cost savings",
+      "date": "2026-02-10",
+      "context": "Pricing quote review completed 5 February; DataCorp reserved-instance pricing more favorable",
+      "outcome": "DataCorp Cloud selected; Sarah Chen and James Tan assigned to manage migration"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:45.620Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:56:51.919Z",
+    "updated_at": "2026-04-24T05:57:23.439Z"
+  },
+  "topic_data_quality": {
+    "id": "topic_data_quality",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Data Quality",
+      "description": "Data quality monitoring and validation"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:56:51.947Z",
+    "updated_at": "2026-04-24T05:57:24.021Z"
+  },
+  "decision_data_quality_monitoring": {
+    "id": "decision_data_quality_monitoring",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Data-quality monitoring mapped onto new silver-layer job set",
+      "date": "2026-02-10",
+      "context": "Steering committee decision from 10 Feb to add data-quality monitoring as one of four deliverables",
+      "outcome": "Four deliverables confirmed with added scope complexity",
+      "made_by": [
+        "person_sarah_chen"
+      ]
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:56:51.980Z",
+    "updated_at": "2026-04-24T05:57:23.531Z"
+  },
+  "decision_delivery_date_revision": {
+    "id": "decision_delivery_date_revision",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Revise final delivery date to 30 March 2026",
+      "date": "2026-02-10",
+      "context": "Timeline adjustment made during steering review",
+      "outcome": "Final delivery rescheduled to 30 March 2026",
+      "made_by": [
+        "person_sarah_chen"
+      ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
-    "ingested_at": "2026-04-24T04:29:19.832Z",
+    "ingested_at": "2026-04-24T05:55:48.075Z",
     "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
-    "created_at": "2026-04-24T04:29:46.794Z"
+    "created_at": "2026-04-24T05:56:52.009Z",
+    "updated_at": "2026-04-24T05:57:23.564Z"
+  },
+  "topic_cloud_architecture": {
+    "id": "topic_cloud_architecture",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Cloud Architecture",
+      "description": "DataCorp Cloud platform with Databricks and medallion architecture"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:46.129Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:56:52.036Z"
+  },
+  "topic_data_pipeline": {
+    "id": "topic_data_pipeline",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Data Pipeline",
+      "description": "Ingestion from SAP S/4HANA and Oracle EBS with medallion layers"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:46.129Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:56:52.056Z"
+  },
+  "topic_business_intelligence": {
+    "id": "topic_business_intelligence",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Business Intelligence",
+      "description": "Power BI reports for operations, executive, and finance"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:48.075Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:56:52.074Z",
+    "updated_at": "2026-04-24T05:57:23.625Z"
   },
   "decision_r01_vendor_lockin": {
     "id": "decision_r01_vendor_lockin",
     "type": "DECISION",
     "attributes": {
-      "summary": "Mitigate vendor lock-in with DataCorp Cloud through non-standard procurement for NorthWind",
-      "context": "Risk R01: Vendor lock-in with DataCorp Cloud and non-standard procurement for NorthWind (Medium likelihood, High impact)",
+      "summary": "Mitigate vendor lock-in with DataCorp Cloud via exit strategy and 90-day termination clause",
+      "context": "Non-standard procurement for NorthWind creates vendor lock-in risk",
       "outcome": "Document exit strategy; negotiate 90-day termination clause"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:48.831Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:46.828Z"
+    "created_at": "2026-04-24T05:56:52.111Z"
   },
-  "decision_r02_handover": {
-    "id": "decision_r02_handover",
+  "decision_r02_handover_gap": {
+    "id": "decision_r02_handover_gap",
     "type": "DECISION",
     "attributes": {
-      "summary": "Manage handover gap from Marcus Lee departure on 7 March",
-      "context": "Risk R02: Marcus Lee departure creates handover gap (High likelihood, High impact)",
+      "summary": "Address Marcus Lee departure handover gap with formal documentation and parallel run",
+      "context": "Marcus Lee departure on 7 March creates handover risk",
       "outcome": "Formal handover document; 2-week parallel run with James Tan"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:48.831Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:46.873Z"
+    "created_at": "2026-04-24T05:56:52.142Z"
   },
   "decision_r03_scope_expansion": {
     "id": "decision_r03_scope_expansion",
     "type": "DECISION",
     "attributes": {
-      "summary": "Address scope expansion risk for data-quality monitoring impacting 30 March deadline",
-      "context": "Risk R03: Scope expansion (data-quality monitoring) may impact 30 March deadline (Medium likelihood, Medium impact)",
-      "outcome": "Weekly burndown review; descope candidates identified"
+      "summary": "Scope expansion (data-quality monitoring) may impact 30 March deadline",
+      "context": "Medium likelihood, Medium impact. Weekly burndown review and descope candidates identified.",
+      "outcome": "Open"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:46.929Z"
+    "created_at": "2026-04-24T05:56:52.172Z",
+    "updated_at": "2026-04-24T05:57:23.711Z"
   },
   "decision_r04_unity_catalog": {
     "id": "decision_r04_unity_catalog",
     "type": "DECISION",
     "attributes": {
       "summary": "Prevent Unity Catalog permissions drift between dev and prod",
-      "context": "Risk R04: Unity Catalog permissions drift between dev and prod (Low likelihood, High impact)",
+      "context": "Permissions drift between dev and prod environments",
       "outcome": "Infrastructure-as-code baseline; automated drift detection"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:48.831Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:46.968Z"
+    "created_at": "2026-04-24T05:56:52.210Z"
   },
   "decision_r05_sap_availability": {
     "id": "decision_r05_sap_availability",
     "type": "DECISION",
     "attributes": {
-      "summary": "Ensure SAP source-system availability during ingestion peaks",
-      "context": "Risk R05: SAP source-system availability during ingestion peaks (Medium likelihood, Medium impact)",
-      "outcome": "Incremental ingestion; 4-hour RPO tolerance agreed"
+      "summary": "SAP source-system availability during ingestion peaks",
+      "context": "Medium likelihood, Medium impact. Incremental ingestion and 4-hour RPO tolerance agreed.",
+      "outcome": "Open"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.010Z"
+    "created_at": "2026-04-24T05:56:52.246Z",
+    "updated_at": "2026-04-24T05:57:23.774Z"
   },
   "decision_r06_powerbi_capacity": {
     "id": "decision_r06_powerbi_capacity",
     "type": "DECISION",
     "attributes": {
-      "summary": "Address Power BI capacity SKU insufficiency at full volume",
-      "context": "Risk R06: Power BI capacity SKU insufficient at full volume (Low likelihood, Medium impact)",
-      "outcome": "Capacity metrics app deployed; upgrade path priced"
+      "summary": "Power BI capacity SKU insufficient at full volume",
+      "context": "Low likelihood, Medium impact. Capacity metrics app deployed and upgrade path priced.",
+      "outcome": "Open"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.056Z"
+    "created_at": "2026-04-24T05:56:52.274Z",
+    "updated_at": "2026-04-24T05:57:23.799Z"
   },
   "decision_r07_data_residency": {
     "id": "decision_r07_data_residency",
     "type": "DECISION",
     "attributes": {
-      "summary": "Confirm data residency with DataCorp Cloud SG region",
-      "context": "Risk R07: Data residency with DataCorp Cloud SG region (Low likelihood, High impact)",
-      "outcome": "Contractual confirmation in MSA; residency clause reviewed"
+      "summary": "Data residency — DataCorp Cloud SG region confirmed",
+      "context": "Low likelihood, High impact. Contractual confirmation in MSA and residency clause reviewed.",
+      "outcome": "Mitigated"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.094Z"
+    "created_at": "2026-04-24T05:56:52.304Z",
+    "updated_at": "2026-04-24T05:57:23.830Z"
   },
   "decision_r08_knowledge_transfer": {
     "id": "decision_r08_knowledge_transfer",
     "type": "DECISION",
     "attributes": {
-      "summary": "Ensure sufficient knowledge transfer given compressed timeline",
-      "context": "Risk R08: Knowledge transfer insufficient given compressed timeline (Medium likelihood, High impact)",
-      "outcome": "Runbook-first documentation; video walkthroughs recorded"
+      "summary": "Knowledge transfer insufficient given compressed timeline",
+      "context": "Medium likelihood, High impact. Runbook-first documentation and video walkthroughs recorded.",
+      "outcome": "Open"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.133Z"
+    "created_at": "2026-04-24T05:56:52.329Z",
+    "updated_at": "2026-04-24T05:57:23.864Z"
   },
   "topic_risk_management": {
     "id": "topic_risk_management",
     "type": "TOPIC",
     "attributes": {
       "label": "Risk Management",
-      "description": "Risk register tracking project risks and mitigation strategies"
+      "description": "Project risks, mitigation strategies, and risk status tracking"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.169Z"
+    "created_at": "2026-04-24T05:56:52.365Z",
+    "updated_at": "2026-04-24T05:57:23.896Z"
   },
-  "topic_vendor_management": {
-    "id": "topic_vendor_management",
+  "topic_project_delivery": {
+    "id": "topic_project_delivery",
     "type": "TOPIC",
     "attributes": {
-      "label": "Vendor Management",
-      "description": "Risks related to vendor lock-in and procurement"
+      "label": "Project Delivery",
+      "description": "Timeline, scope, and knowledge transfer risks"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
+    "ingested_at": "2026-04-24T05:55:48.831Z",
     "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.208Z"
+    "created_at": "2026-04-24T05:56:52.433Z"
   },
-  "topic_infrastructure": {
-    "id": "topic_infrastructure",
-    "type": "TOPIC",
-    "attributes": {
-      "label": "Infrastructure & Systems",
-      "description": "Risks related to infrastructure, data systems, and cloud platforms"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
-    "ingested_at": "2026-04-24T04:29:24.722Z",
-    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
-    "created_at": "2026-04-24T04:29:47.249Z"
-  },
-  "decision_steering_committee_10_feb": {
-    "id": "decision_steering_committee_10_feb",
+  "decision_revised_scope": {
+    "id": "decision_revised_scope",
     "type": "DECISION",
     "attributes": {
-      "summary": "Confirmed revised four-deliverable scope for Project Horizon",
+      "summary": "Confirmed four-deliverable scope at steering committee meeting",
       "date": "2026-02-10",
-      "outcome": "Scope finalized with four deliverables including newly-added data-quality monitoring component"
+      "context": "Steering committee confirmed revised project scope including newly-added data-quality monitoring component",
+      "outcome": "Scope approved with target delivery date of 30 March 2026."
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
     "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:47.283Z"
+    "created_at": "2026-04-24T05:56:52.464Z",
+    "updated_at": "2026-04-24T05:57:23.924Z"
   },
-  "decision_vendor_lock_in_risk": {
-    "id": "decision_vendor_lock_in_risk",
+  "decision_vendor_concern": {
+    "id": "decision_vendor_concern",
     "type": "DECISION",
     "attributes": {
-      "summary": "Vendor lock-in concern with DataCorp Cloud flagged; confirmation needed on vendor switch alignment with procurement standards",
-      "context": "Risk raised regarding DataCorp Cloud; NorthWind CTO requesting vendor switch confirmation"
+      "summary": "Address vendor lock-in concern with DataCorp Cloud and procurement standards alignment",
+      "context": "Vendor lock-in flagged in risk register; Jun Park (NorthWind CTO) requested confirmation that vendor choice aligns with procurement standards.",
+      "outcome": "Pending resolution"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
+    "ingested_at": "2026-04-24T05:55:51.099Z",
     "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:47.323Z"
+    "created_at": "2026-04-24T05:56:52.497Z"
   },
-  "document_weekly_status_update": {
-    "id": "document_weekly_status_update",
+  "document_weekly_status": {
+    "id": "document_weekly_status",
     "type": "DOCUMENT",
     "attributes": {
       "title": "Project Horizon — Weekly Status Update",
       "file_type": ".docx",
-      "version": "Week ending 24 February 2026"
+      "version": "Week ending 24 February 2026",
+      "summary": "Weekly status update covering progress on four deliverables, personnel changes, and risk escalations."
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
+    "ingested_at": "2026-04-24T05:55:51.099Z",
     "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:47.361Z"
+    "created_at": "2026-04-24T05:56:52.532Z"
   },
-  "topic_data_quality_monitoring": {
-    "id": "topic_data_quality_monitoring",
+  "topic_data_infrastructure": {
+    "id": "topic_data_infrastructure",
     "type": "TOPIC",
     "attributes": {
-      "label": "Data Quality Monitoring",
-      "description": "Data-quality monitoring workload and scope considerations"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
-    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.399Z"
-  },
-  "topic_datacorp_cloud": {
-    "id": "topic_datacorp_cloud",
-    "type": "TOPIC",
-    "attributes": {
-      "label": "DataCorp Cloud",
-      "description": "Cloud infrastructure with vendor lock-in risk"
+      "label": "Data Infrastructure",
+      "description": "Databricks, Power BI, cloud provisioning, and data-quality monitoring"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
-    "ingested_at": "2026-04-24T04:29:24.743Z",
+    "ingested_at": "2026-04-24T05:55:51.099Z",
     "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
-    "created_at": "2026-04-24T04:29:47.441Z"
+    "created_at": "2026-04-24T05:56:52.569Z"
   },
-  "person_priya_kumar": {
-    "id": "person_priya_kumar",
+  "topic_resource_planning": {
+    "id": "topic_resource_planning",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Resource Planning",
+      "description": "Project staffing, handover planning"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:51.099Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:56:52.600Z"
+  },
+  "person_priya": {
+    "id": "person_priya",
     "type": "PERSON",
     "attributes": {
       "name": "Priya",
       "role": "Project Lead"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.486Z"
+    "created_at": "2026-04-24T05:56:52.629Z",
+    "updated_at": "2026-04-24T05:57:24.072Z"
   },
-  "person_james_wong": {
-    "id": "person_james_wong",
+  "person_james": {
+    "id": "person_james",
     "type": "PERSON",
     "attributes": {
       "name": "James",
-      "role": "Data Engineer"
+      "role": "Engineer",
+      "expertise_tags": [
+        "testing",
+        "ingestion"
+      ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.536Z"
+    "created_at": "2026-04-24T05:56:52.664Z",
+    "updated_at": "2026-04-24T05:57:24.106Z"
   },
-  "person_jun_lee": {
-    "id": "person_jun_lee",
+  "person_jun": {
+    "id": "person_jun",
     "type": "PERSON",
     "attributes": {
       "name": "Jun",
       "role": "Stakeholder"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.561Z"
+    "created_at": "2026-04-24T05:56:52.699Z",
+    "updated_at": "2026-04-24T05:57:24.141Z"
+  },
+  "project_northwind_data_platform": {
+    "id": "project_northwind_data_platform",
+    "type": "PROJECT",
+    "attributes": {
+      "name": "NorthWind Data Platform",
+      "status": "active",
+      "start_date": "2025-02-10"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:56:52.735Z"
+  },
+  "decision_steering_committee_feb10": {
+    "id": "decision_steering_committee_feb10",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Steering committee approved architecture revision with four deliverables and new silver-layer job set for data-quality monitoring",
+      "date": "2025-02-10",
+      "context": "Architecture redesign reflecting steering committee decisions on scope and deliverables"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:56:52.767Z"
+  },
+  "decision_data_quality_monitoring_scope": {
+    "id": "decision_data_quality_monitoring_scope",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Evaluate commitment to data-quality monitoring scope given 30 March deadline constraints",
+      "context": "NorthWind stakeholder ambivalence on data-quality monitoring may warrant scope reversion to avoid sunk cost"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:56:52.801Z"
   },
   "document_architecture_design_v2": {
     "id": "document_architecture_design_v2",
@@ -576,187 +618,567 @@
       "file_path": "04_Architecture_Design_v2.pptx"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.597Z"
+    "created_at": "2026-04-24T05:56:52.819Z"
   },
-  "decision_steering_committee_feb_10": {
-    "id": "decision_steering_committee_feb_10",
-    "type": "DECISION",
+  "topic_data_quality_monitoring": {
+    "id": "topic_data_quality_monitoring",
+    "type": "TOPIC",
     "attributes": {
-      "summary": "Steering committee approved revised architecture with four deliverables and data-quality monitoring workload mapped to silver-layer job set",
-      "date": "2025-02-10T00:00:00Z",
-      "context": "Architecture design revisions reflected steering committee decisions",
-      "outcome": "Architecture v2 design document created"
+      "label": "Data Quality Monitoring",
+      "description": "Silver-layer monitoring workload and job set implementation"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.637Z"
+    "created_at": "2026-04-24T05:56:52.852Z"
   },
-  "project_datacorp_cloud_provisioning": {
-    "id": "project_datacorp_cloud_provisioning",
-    "type": "PROJECT",
+  "topic_architecture_design": {
+    "id": "topic_architecture_design",
+    "type": "TOPIC",
     "attributes": {
-      "name": "DataCorp Cloud Provisioning",
-      "status": "completed",
-      "description": "DataCorp Cloud infrastructure provisioning"
+      "label": "Architecture Design",
+      "description": "System architecture and technical design decisions"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
+    "ingested_at": "2026-04-24T05:55:57.189Z",
     "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.674Z"
-  },
-  "project_baseline_ingestion_tests": {
-    "id": "project_baseline_ingestion_tests",
-    "type": "PROJECT",
-    "attributes": {
-      "name": "Baseline Ingestion Tests",
-      "status": "active",
-      "description": "Baseline ingestion testing on DataCorp Cloud"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
-    "ingested_at": "2026-04-24T04:29:31.741Z",
-    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
-    "created_at": "2026-04-24T04:29:47.701Z"
+    "created_at": "2026-04-24T05:56:52.883Z"
   },
   "person_sarah": {
     "id": "person_sarah",
     "type": "PERSON",
     "attributes": {
       "name": "Sarah",
-      "role": "Project stakeholder"
+      "role": "Project stakeholder",
+      "expertise_tags": [
+        "project oversight"
+      ]
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.739Z"
+    "created_at": "2026-04-24T05:56:52.913Z",
+    "updated_at": "2026-04-24T05:57:24.295Z"
   },
-  "project_project_horizon": {
-    "id": "project_project_horizon",
-    "type": "PROJECT",
-    "attributes": {
-      "name": "Project Horizon",
-      "status": "active",
-      "description": "Data platform modernization with Unity Catalog, SAP S/4HANA ingestion, and cloud provisioning"
-    },
-    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
-    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.784Z"
-  },
-  "decision_steering_10_feb_2026": {
-    "id": "decision_steering_10_feb_2026",
+  "decision_feb_10_steering": {
+    "id": "decision_feb_10_steering",
     "type": "DECISION",
     "attributes": {
-      "summary": "Steering decision to add Deliverable 4 and assign DataCorp Cloud provisioning to Marcus",
+      "summary": "Added Deliverable 4 to project scope",
       "date": "2026-02-10",
-      "context": "Project scope expansion to include data-quality monitoring workload"
+      "context": "Steering committee decision to include data-quality monitoring workload"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:01.773Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.835Z"
+    "created_at": "2026-04-24T05:56:52.946Z"
   },
-  "decision_cloudvendor_migration": {
-    "id": "decision_cloudvendor_migration",
+  "decision_datacorp_cloud_selection": {
+    "id": "decision_datacorp_cloud_selection",
     "type": "DECISION",
     "attributes": {
-      "summary": "Conditional rollback from DataCorp Cloud to TechCorp Cloud if procurement objects",
-      "context": "DataCorp Cloud provisioned but rollback contingency prepared; 3 days of infrastructure work required"
+      "summary": "Provisioned DataCorp Cloud Southeast Asia region with reserved-instance tier",
+      "context": "Primary cloud platform for Project Horizon, with TechCorp Cloud as rollback option"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:01.773Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.871Z"
+    "created_at": "2026-04-24T05:56:52.977Z"
   },
-  "document_handover_notes": {
-    "id": "document_handover_notes",
-    "type": "DOCUMENT",
+  "decision_parallel_run_r02": {
+    "id": "decision_parallel_run_r02",
+    "type": "DECISION",
     "attributes": {
-      "title": "Marcus Lee — Handover Notes",
-      "file_type": ".md",
-      "summary": "Transition notes covering Unity Catalog governance, SAP ingestion pipelines, medallion-layer completion status, and open items for James Tan"
+      "summary": "Approved two-week parallel run with James Tan for R02 mitigation",
+      "date": "2026-03-03",
+      "context": "Risk mitigation strategy starting Monday 3 March"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:01.773Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.905Z"
+    "created_at": "2026-04-24T05:56:53.010Z"
   },
   "topic_unity_catalog": {
     "id": "topic_unity_catalog",
     "type": "TOPIC",
     "attributes": {
-      "label": "Unity Catalog Governance",
-      "description": "Metastore baseline, access groups, and catalog administration"
+      "label": "Unity Catalog governance",
+      "description": "Metastore configuration, access groups, admin role transition"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.947Z"
+    "created_at": "2026-04-24T05:56:53.045Z",
+    "updated_at": "2026-04-24T05:57:24.459Z"
   },
-  "topic_sap_integration": {
-    "id": "topic_sap_integration",
+  "topic_sap_ingestion": {
+    "id": "topic_sap_ingestion",
     "type": "TOPIC",
     "attributes": {
-      "label": "SAP S/4HANA Integration",
-      "description": "Bronze layer ingestion, schema drift monitoring, nightly jobs"
+      "label": "SAP S/4HANA ingestion",
+      "description": "Bronze layer nightly ingestion, schema drift alerts, data quality monitoring"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:01.773Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:47.991Z"
+    "created_at": "2026-04-24T05:56:53.079Z"
+  },
+  "topic_medallion_architecture": {
+    "id": "topic_medallion_architecture",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Medallion layer transformations",
+      "description": "Silver transformations including order-to-cash fact table"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+    "ingested_at": "2026-04-24T05:56:01.773Z",
+    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
+    "created_at": "2026-04-24T05:56:53.109Z"
   },
   "topic_cloud_infrastructure": {
     "id": "topic_cloud_infrastructure",
     "type": "TOPIC",
     "attributes": {
-      "label": "Cloud Infrastructure & Provisioning",
-      "description": "DataCorp Cloud / TechCorp Cloud, reserved instances, terraform modules"
+      "label": "Cloud infrastructure",
+      "description": "DataCorp Cloud vs TechCorp Cloud provisioning and rollback planning"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:48.030Z"
+    "created_at": "2026-04-24T05:56:53.141Z",
+    "updated_at": "2026-04-24T05:57:23.591Z"
   },
-  "topic_data_quality": {
-    "id": "topic_data_quality",
+  "decision_vendor_selection": {
+    "id": "decision_vendor_selection",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Selected TechCorp Cloud as cloud vendor for Databricks workspace cluster",
+      "context": "Rationale: existing Temus master agreement, preferred discount tier, and alignment with NorthWind's current Azure footprint",
+      "made_by": [
+        "person_sarah_chen"
+      ]
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\01_Project_Scope_v1.docx",
+    "ingested_at": "2026-04-24T05:55:39.900Z",
+    "checksum": "6540acdf379e606fb4c5d7995333185f3b9ec7e3952d41f0cfa71eb86b4f24e6",
+    "created_at": "2026-04-24T05:57:23.048Z"
+  },
+  "topic_databricks": {
+    "id": "topic_databricks",
     "type": "TOPIC",
     "attributes": {
-      "label": "Data Quality Monitoring",
-      "description": "Deliverable 4: schema drift alerts and data-quality monitoring workload"
+      "label": "Databricks",
+      "description": "Databricks workspace provisioning on DataCorp Cloud"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:57:23.081Z"
+  },
+  "topic_power_bi": {
+    "id": "topic_power_bi",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Power BI",
+      "description": "Power BI reports development"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:57:23.113Z"
+  },
+  "meeting_kickoff_horizon": {
+    "id": "meeting_kickoff_horizon",
+    "type": "MEETING",
+    "attributes": {
+      "title": "Kickoff Meeting — Project Horizon",
+      "date": "2026-01-20T10:00:00+08:00",
+      "duration_minutes": null,
+      "action_items": [
+        "James Tan to set up the Databricks workspace on TechCorp Cloud by 25 January",
+        "Marcus Lee to produce the Unity Catalog governance baseline by 30 January",
+        "Sarah Chen to deliver the architecture design document by 5 February"
+      ]
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\02_Kickoff_Meeting_Minutes.docx",
+    "ingested_at": "2026-04-24T05:55:39.902Z",
+    "checksum": "0e421593a8edcf0955950c653a2d60d9a56a40f5163aed62b7c64d4b8b7cbc96",
+    "created_at": "2026-04-24T05:57:23.204Z"
+  },
+  "topic_data_platform": {
+    "id": "topic_data_platform",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Data Platform",
+      "description": "Medallion architecture, data ingestion, ETL"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:48.075Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:57:23.293Z"
+  },
+  "meeting_steering_committee_10feb2026": {
+    "id": "meeting_steering_committee_10feb2026",
+    "type": "MEETING",
+    "attributes": {
+      "title": "Steering Committee — Project Horizon",
+      "date": "2026-02-10"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:45.620Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:57:23.353Z"
+  },
+  "decision_timeline_revision": {
+    "id": "decision_timeline_revision",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Revised final delivery date from 15 March 2026 to 30 March 2026 due to expanded scope",
+      "date": "2026-02-10"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\03_Steering_Committee_10Feb2026.pdf",
+    "ingested_at": "2026-04-24T05:55:45.620Z",
+    "checksum": "a3958317c4916723cd14c9a0104f3bdc48d2c7ceb9227979449d863592445457",
+    "created_at": "2026-04-24T05:57:23.406Z"
+  },
+  "document_horizon_architecture_v2": {
+    "id": "document_horizon_architecture_v2",
+    "type": "DOCUMENT",
+    "attributes": {
+      "title": "Project Horizon Architecture Design v2.0",
+      "file_type": ".pptx",
+      "file_path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+      "author_id": "person_sarah_chen",
+      "version": "2.0",
+      "summary": "Architecture design document with deliverables, cloud platform specifications, and project timeline post steering revisions"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:48.075Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:57:23.461Z"
+  },
+  "decision_databricks_workspace": {
+    "id": "decision_databricks_workspace",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Implement Databricks workspace with Unity Catalog on DataCorp Cloud",
+      "context": "Cloud & Data Platform selection for Project Horizon using medallion architecture (bronze/silver/gold)",
+      "made_by": [
+        "person_sarah_chen"
+      ]
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\04_Architecture_Design_v2.pptx",
+    "ingested_at": "2026-04-24T05:55:48.075Z",
+    "checksum": "e1cbeae28b61670ee7b96b4fba86f7d13020bf915b72fd8c79ec1e856a180333",
+    "created_at": "2026-04-24T05:57:23.498Z"
+  },
+  "decision_r01_vendor_lock_in": {
+    "id": "decision_r01_vendor_lock_in",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Vendor lock-in with DataCorp Cloud — non-standard procurement for NorthWind",
+      "context": "Medium likelihood, High impact. Exit strategy documentation and 90-day termination clause negotiation required.",
+      "outcome": "Open"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
+    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
+    "created_at": "2026-04-24T05:57:23.647Z"
+  },
+  "decision_r02_marcus_lee_departure": {
+    "id": "decision_r02_marcus_lee_departure",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Marcus Lee departure 7 March creates handover gap",
+      "context": "High likelihood, High impact. Formal handover document and 2-week parallel run with James Tan planned.",
+      "outcome": "Open"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
+    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
+    "created_at": "2026-04-24T05:57:23.679Z"
+  },
+  "decision_r04_unity_catalog_permissions": {
+    "id": "decision_r04_unity_catalog_permissions",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Unity Catalog permissions drift between dev and prod",
+      "context": "Low likelihood, High impact. Infrastructure-as-code baseline and automated drift detection implemented.",
+      "outcome": "Mitigated"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\05_Risk_Register.xlsx",
+    "ingested_at": "2026-04-24T05:55:53.533Z",
+    "checksum": "cafc70477678bdb793be99cfbee482c92a7d1509723369397a5799719d730c2b",
+    "created_at": "2026-04-24T05:57:23.740Z"
+  },
+  "decision_vendor_alignment": {
+    "id": "decision_vendor_alignment",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Vendor switch alignment with NorthWind procurement standards",
+      "context": "Jun Park (NorthWind CTO) requested confirmation that DataCorp Cloud vendor selection aligns with procurement standards"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:57:23.956Z"
+  },
+  "decision_handover_plan": {
+    "id": "decision_handover_plan",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Handover plan needed for Marcus Lee's project rolloff",
+      "date": "2026-03-07",
+      "context": "Marcus Lee giving notice and rolling off project on 7 March; Priya to request formal handover document by 3 March"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:57:23.988Z"
+  },
+  "topic_vendor_risk": {
+    "id": "topic_vendor_risk",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Vendor Lock-in Risk",
+      "description": "Vendor lock-in concern with DataCorp Cloud flagged in risk register"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\06_Weekly_Status_Update.docx",
+    "ingested_at": "2026-04-24T05:55:55.347Z",
+    "checksum": "0b7e73be0835cc940e3cb6fa25efa8b6b84e2b386fa23677090674c156d1f87c",
+    "created_at": "2026-04-24T05:57:24.042Z"
+  },
+  "project_northwind": {
+    "id": "project_northwind",
+    "type": "PROJECT",
+    "attributes": {
+      "name": "NorthWind",
+      "status": "active",
+      "description": "Data integration project with data-quality monitoring requirements"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:57:24.172Z"
+  },
+  "decision_capacity_hold": {
+    "id": "decision_capacity_hold",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Hold capacity to revert cleanly if NorthWind changes scope on data-quality monitoring",
+      "context": "30 March target is tight with added scope; Jun has been ambivalent about monitoring requirements",
+      "outcome": "Recommended approach to manage risk"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:57:24.196Z"
+  },
+  "document_architecture_v2": {
+    "id": "document_architecture_v2",
+    "type": "DOCUMENT",
+    "attributes": {
+      "title": "Architecture Design v2",
+      "file_type": ".pptx",
+      "version": "2"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:57:24.225Z"
+  },
+  "topic_architecture": {
+    "id": "topic_architecture",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Architecture",
+      "description": "System design and architectural decisions"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\07_Email_Sarah_to_Priya.eml",
+    "ingested_at": "2026-04-24T05:56:02.292Z",
+    "checksum": "0befc0432ac063c3eb9209ae8d85d7d54063a3282a2e68058c10aa0cc64748b0",
+    "created_at": "2026-04-24T05:57:24.259Z"
+  },
+  "project_deliverable_4": {
+    "id": "project_deliverable_4",
+    "type": "PROJECT",
+    "attributes": {
+      "name": "Deliverable 4 - Data Quality Monitoring",
+      "status": "active",
+      "description": "Data-quality monitoring workload integrated with schema drift alerts from bronze ingestion"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
-    "ingested_at": "2026-04-24T04:29:36.522Z",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
     "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
-    "created_at": "2026-04-24T04:29:48.072Z"
+    "created_at": "2026-04-24T05:57:24.328Z"
+  },
+  "decision_10_feb_steering": {
+    "id": "decision_10_feb_steering",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Steering decision to include Deliverable 4 (data quality monitoring) in scope; approval of DataCorp Cloud provisioning for Southeast Asia",
+      "date": "2026-02-10",
+      "context": "Project Horizon scope expansion and cloud infrastructure approval"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
+    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
+    "created_at": "2026-04-24T05:57:24.363Z"
+  },
+  "decision_r02_mitigation": {
+    "id": "decision_r02_mitigation",
+    "type": "DECISION",
+    "attributes": {
+      "summary": "Two-week parallel run with James Tan starting 3 March for R02 risk mitigation",
+      "date": "2026-02-28",
+      "context": "Transition planning for Marcus Lee's departure and James Tan's onboarding"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
+    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
+    "created_at": "2026-04-24T05:57:24.397Z"
+  },
+  "document_marcus_handover": {
+    "id": "document_marcus_handover",
+    "type": "DOCUMENT",
+    "attributes": {
+      "title": "Marcus Lee — Handover Notes",
+      "file_type": ".md",
+      "file_path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+      "author_id": "person_marcus_lee",
+      "summary": "Handover documentation covering Unity Catalog governance baseline, SAP S/4HANA ingestion pipelines, DataCorp Cloud provisioning, open items, and operational guidance"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
+    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
+    "created_at": "2026-04-24T05:57:24.426Z"
+  },
+  "topic_data_ingestion": {
+    "id": "topic_data_ingestion",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Data ingestion and transformations",
+      "description": "SAP S/4HANA bronze layer, silver transformations, medallion architecture"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\08_Marcus_Handover_Notes.md",
+    "ingested_at": "2026-04-24T05:56:05.255Z",
+    "checksum": "4cbef9cf8836897f094b94aeb8c4a522ee424a9b0d604ac539816fae33fe1acc",
+    "created_at": "2026-04-24T05:57:24.497Z"
+  },
+  "person_priya_ramesh": {
+    "id": "person_priya_ramesh",
+    "type": "PERSON",
+    "attributes": {
+      "name": "Priya Ramesh",
+      "role": "Temus PM"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.464Z"
+  },
+  "person_jun_park": {
+    "id": "person_jun_park",
+    "type": "PERSON",
+    "attributes": {
+      "name": "Jun Park",
+      "role": "NorthWind CTO"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.483Z"
+  },
+  "person_sarah_chen": {
+    "id": "person_sarah_chen",
+    "type": "PERSON",
+    "attributes": {
+      "name": "Sarah Chen",
+      "role": "Architect"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.519Z"
+  },
+  "person_james_tan": {
+    "id": "person_james_tan",
+    "type": "PERSON",
+    "attributes": {
+      "name": "James Tan",
+      "role": "Engineer"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.556Z"
+  },
+  "person_marcus_lee": {
+    "id": "person_marcus_lee",
+    "type": "PERSON",
+    "attributes": {
+      "name": "Marcus Lee",
+      "role": "Team member"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.596Z"
   },
   "decision_scope_reversion": {
     "id": "decision_scope_reversion",
     "type": "DECISION",
     "attributes": {
-      "summary": "Revert Project Horizon to original scope with three deliverables and TechCorp Cloud vendor",
+      "summary": "Revert to original project scope with three deliverables and TechCorp Cloud vendor",
       "date": "2026-02-25",
-      "context": "Client confirmed reversion to original scope following procurement-standard concerns raised by Jun Park regarding DataCorp Cloud; alignment with NorthWind's existing TechCorp master agreement preferred",
-      "outcome": "Data-quality monitoring component descoped; final delivery date reverts to 15 March 2026; cloud vendor reverts to TechCorp Cloud"
+      "context": "Client confirmed reversion following discussion with Jun Park regarding procurement standards and DataCorp Cloud concerns. Data-quality monitoring component descoped to Phase 2.",
+      "outcome": "Deliverables reduced to 3, final delivery date reverted to 15 March 2026, cloud vendor changed to TechCorp Cloud"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
     "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:30:09.353Z"
+    "created_at": "2026-04-24T05:58:25.669Z"
   },
-  "decision_descope_data_quality": {
-    "id": "decision_descope_data_quality",
-    "type": "DECISION",
+  "document_scope_amendment": {
+    "id": "document_scope_amendment",
+    "type": "DOCUMENT",
     "attributes": {
-      "summary": "Descope data-quality monitoring component from Project Horizon Phase 1",
-      "date": "2026-02-25",
-      "context": "Data-quality monitoring component added at 10 February steering committee decision is now descoped",
-      "outcome": "Component will be handled under separate Phase 2 engagement"
+      "title": "Scope Amendment Confirmation — Project Horizon",
+      "file_type": ".docx",
+      "file_path": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+      "author_id": "person_priya_ramesh",
+      "version": "1",
+      "summary": "Confirmation of scope amendment reverting to original three deliverables and TechCorp Cloud vendor with 15 March 2026 delivery date"
     },
     "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
-    "ingested_at": "2026-04-24T04:30:03.926Z",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
     "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
-    "created_at": "2026-04-24T04:30:09.404Z"
+    "created_at": "2026-04-24T05:58:25.705Z"
+  },
+  "topic_scope_management": {
+    "id": "topic_scope_management",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Scope Management",
+      "description": "Changes to project scope, deliverables, and phase planning"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.737Z"
+  },
+  "topic_vendor_selection": {
+    "id": "topic_vendor_selection",
+    "type": "TOPIC",
+    "attributes": {
+      "label": "Vendor Selection",
+      "description": "Cloud infrastructure vendor decisions and transitions"
+    },
+    "source_file": "C:\\Users\\VenkataKrishnanSatiy\\Documents\\atlas\\demo\\aidlas-demo-project\\09_Scope_Amendment_Confirmation.docx",
+    "ingested_at": "2026-04-24T05:58:18.675Z",
+    "checksum": "a2d4ad2723c8e0ef86dad190a43f311da5731dd2664d41a98cae93db236ac0f3",
+    "created_at": "2026-04-24T05:58:25.771Z"
   }
 }

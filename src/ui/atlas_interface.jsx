@@ -44,9 +44,39 @@ const PANEL_STYLE = {
   boxSizing: 'border-box',
 }
 
+const LAST_PARENT_KEY = 'atlas.lastParentPath'
+
+function readLastParent() {
+  try { return typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_PARENT_KEY) || '' : '' }
+  catch (_) { return '' }
+}
+
+function writeLastParent(parent) {
+  try { if (typeof localStorage !== 'undefined' && parent) localStorage.setItem(LAST_PARENT_KEY, parent) }
+  catch (_) {}
+}
+
+function parentOf(p) {
+  if (!p) return ''
+  const sep = p.includes('\\') ? '\\' : '/'
+  const parts = p.split(/[\\/]/).filter(Boolean)
+  if (parts.length <= 1) return ''
+  parts.pop()
+  const prefix = p.startsWith('/') ? '/' : ''
+  return prefix + parts.join(sep)
+}
+
+function joinPath(parent, name) {
+  if (!parent) return name
+  const sep = parent.includes('\\') ? '\\' : '/'
+  const stripped = parent.replace(/[\\/]+$/, '')
+  return stripped + sep + name
+}
+
 function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scanning, dryRunning, onScan, onDryRun, onStartIngestion, ingesting, ingestionResult, watcherRunning, watcherPath, onStartWatcher, onStopWatcher }) {
   const folderRef = useRef(null)
   const [browseHint, setBrowseHint] = useState(null)
+  const [usedRemembered, setUsedRemembered] = useState(false)
 
   const handleFolderSelect = (e) => {
     const files = Array.from(e.target.files)
@@ -58,6 +88,109 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
       fileCount: files.length,
       totalSize: files.reduce((s, f) => s + f.size, 0),
     })
+
+    // Resolve parent in priority order:
+    //   1. If the input already has a parent (non-empty with ≥2 segments), swap last segment.
+    //   2. Else if we remember a parent from a previous ingestion, use that.
+    //   3. Else drop in the folder name alone and prompt the user to prefix once.
+    const current = (folderPath || '').trim()
+    const currentParent = parentOf(current)
+    if (currentParent) {
+      setFolderPath(joinPath(currentParent, folderName))
+      setUsedRemembered(false)
+      return
+    }
+    const remembered = readLastParent()
+    if (remembered) {
+      setFolderPath(joinPath(remembered, folderName))
+      setUsedRemembered(true)
+      return
+    }
+    setFolderPath(folderName)
+    setUsedRemembered(false)
+  }
+
+  // Remember the parent of folderPath once it looks complete (e.g. when Dry Run or Ingest is about to fire).
+  const rememberParentOf = (p) => {
+    const parent = parentOf((p || '').trim())
+    if (parent) writeLastParent(parent)
+  }
+
+  const handleDryRunClick = () => { rememberParentOf(folderPath); onDryRun && onDryRun() }
+  const handleStartIngestionClick = () => { rememberParentOf(folderPath); onStartIngestion && onStartIngestion() }
+
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!dragOver) setDragOver(true)
+  }
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+  }
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+
+    // Try 1: DataTransferItem with getAsFileSystemHandle (Chromium — gives folder handle but not abs path).
+    // Try 2: dt.files with webkitRelativePath — we can only extract the folder name.
+    // Try 3: dt.getData('text/uri-list') — some OSes supply file:// URI with absolute path on folder drops.
+    // Try 4: dt.getData('text/plain') — Finder sometimes supplies the absolute path as plain text.
+    const dt = e.dataTransfer
+    if (!dt) return
+
+    let resolvedPath = ''
+
+    // Prefer text/uri-list (Mac Finder tends to populate this with file:// URIs)
+    try {
+      const uriList = dt.getData && dt.getData('text/uri-list')
+      if (uriList) {
+        const firstLine = uriList.split(/\r?\n/).find(l => l && !l.startsWith('#'))
+        if (firstLine && firstLine.startsWith('file://')) {
+          let decoded = decodeURIComponent(firstLine.replace(/^file:\/\//, ''))
+          // Windows: strip leading slash from /C:/... → C:/...
+          if (/^\/[A-Za-z]:/.test(decoded)) decoded = decoded.slice(1)
+          // Convert forward slashes to backslashes on Windows-looking paths
+          if (/^[A-Za-z]:/.test(decoded)) decoded = decoded.replace(/\//g, '\\')
+          resolvedPath = decoded.replace(/\/$/, '').replace(/\\$/, '')
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to text/plain (some OSes / browsers)
+    if (!resolvedPath) {
+      try {
+        const plain = dt.getData && dt.getData('text/plain')
+        if (plain && (plain.startsWith('/') || /^[A-Za-z]:/.test(plain))) {
+          resolvedPath = plain.trim()
+        }
+      } catch (_) {}
+    }
+
+    // If we still have nothing, read the folder name from dt.items / dt.files and auto-insert like Browse does
+    if (!resolvedPath && dt.files && dt.files.length > 0) {
+      const firstRel = dt.files[0].webkitRelativePath || dt.files[0].name
+      const folderName = firstRel.split('/')[0]
+      const remembered = readLastParent()
+      if (remembered) {
+        resolvedPath = joinPath(remembered, folderName)
+        setUsedRemembered(true)
+      } else {
+        resolvedPath = folderName
+        setUsedRemembered(false)
+      }
+      setBrowseHint({
+        folderName,
+        fileCount: dt.files.length,
+        totalSize: Array.from(dt.files).reduce((s, f) => s + f.size, 0),
+      })
+    }
+
+    if (resolvedPath) setFolderPath(resolvedPath)
   }
 
   const formatBytes = (bytes) => {
@@ -79,50 +212,38 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
           type="text"
           value={folderPath}
           onChange={(e) => setFolderPath(e.target.value)}
-          placeholder="C:\Users\you\OneDrive - Your Org\   (paste an absolute path)"
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          placeholder="Drag a folder from Finder/Explorer here, or paste an absolute path"
           style={{
             flex: 1,
-            background: COLORS.bg,
-            border: `1px solid ${COLORS.border}`,
+            background: dragOver ? '#1b2638' : COLORS.bg,
+            border: `1px ${dragOver ? 'dashed' : 'solid'} ${dragOver ? COLORS.accent : COLORS.border}`,
             borderRadius: 6,
             padding: '10px 14px',
             color: COLORS.text,
             fontSize: 13,
             outline: 'none',
+            transition: 'background 150ms, border-color 150ms',
           }}
         />
         <button
           onClick={() => folderRef.current?.click()}
-          style={{
-            background: 'transparent',
-            color: COLORS.accent,
-            border: `1px solid ${COLORS.accent}`,
-            borderRadius: 6,
-            padding: '10px 18px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-          title="Preview — Browse only counts files. Still need to paste the full absolute path above."
-        >
-          Browse
-        </button>
-        <button
-          onClick={onScan}
-          disabled={!folderPath || ingesting || scanning}
           style={{
             background: COLORS.accent,
             color: '#fff',
             border: 'none',
             borderRadius: 6,
             padding: '10px 18px',
-            cursor: (!folderPath || ingesting || scanning) ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             fontWeight: 700,
             fontSize: 13,
-            opacity: (!folderPath || ingesting || scanning) ? 0.5 : 1,
           }}
+          title="Pick a folder. The folder name is auto-inserted into the path input. Verify the parent directory before running Dry Run."
         >
-          {scanning ? 'Scanning...' : 'Scan'}
+          Browse
         </button>
       </div>
 
@@ -140,35 +261,11 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
         <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: 10, marginBottom: 12, fontSize: 12, color: COLORS.text }}>
           <div style={{ color: COLORS.accent, fontWeight: 700, marginBottom: 4 }}>Browse preview: {browseHint.folderName}</div>
           <div style={{ color: COLORS.muted }}>
-            {browseHint.fileCount} files · {formatBytes(browseHint.totalSize)} — browsers don't expose absolute paths,
-            so please <b>paste the full path</b> to this folder in the input above, then click Scan.
+            {browseHint.fileCount} files · {formatBytes(browseHint.totalSize)}
+            {usedRemembered
+              ? ' — parent path remembered from your last ingestion. Check the prefix and adjust if needed.'
+              : ' — folder name auto-inserted. Add the parent directory prefix once; it will be remembered next time.'}
           </div>
-        </div>
-      )}
-
-      {scanError && (
-        <div style={{ background: '#2a1515', border: `1px solid ${COLORS.red}`, borderRadius: 6, padding: 10, marginBottom: 12, fontSize: 13, color: '#fecaca' }}>
-          <div style={{ color: COLORS.red, fontWeight: 700, marginBottom: 4 }}>⚠ Scan failed</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-word' }}>{scanError}</div>
-        </div>
-      )}
-
-      {scanResults && !ingesting && (
-        <div style={{ color: COLORS.muted, fontSize: 13, lineHeight: 1.8, marginBottom: 12 }}>
-          <div>● {scanResults.summary?.total_found ?? 0} files found</div>
-          <div>● {scanResults.summary?.total_supported ?? 0} supported · {scanResults.summary?.total_skipped ?? 0} skipped</div>
-          <div>● {formatBytes(scanResults.summary?.total_size_bytes)} total</div>
-          {scanResults.summary?.total_flagged > 0 && (
-            <div style={{ color: COLORS.yellow }}>⚠ {scanResults.summary.total_flagged} sensitive filenames require review</div>
-          )}
-          {scanResults.errors?.length > 0 && (
-            <div style={{ color: COLORS.yellow, marginTop: 4 }}>⚠ {scanResults.errors.length} path error(s) during crawl</div>
-          )}
-          {scanResults.summary?.total_found === 0 && (
-            <div style={{ color: COLORS.yellow, marginTop: 4 }}>
-              ⚠ No files were discovered. Check that the path is correct and accessible.
-            </div>
-          )}
         </div>
       )}
 
@@ -183,7 +280,7 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
       {folderPath && !ingesting && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button
-            onClick={onDryRun}
+            onClick={handleDryRunClick}
             disabled={dryRunning}
             style={{
               background: 'transparent',
@@ -200,20 +297,20 @@ function FolderWidget({ folderPath, setFolderPath, scanResults, scanError, scann
             {dryRunning ? '🔍 Dry running…' : '🔍 Dry Run'}
           </button>
           <button
-            onClick={onStartIngestion}
-            disabled={!scanResults || scanResults.summary?.total_supported === 0}
+            onClick={handleStartIngestionClick}
+            disabled={!folderPath}
             style={{
               background: COLORS.accent,
               color: '#fff',
               border: 'none',
               borderRadius: 6,
               padding: '10px 24px',
-              cursor: (!scanResults || scanResults.summary?.total_supported === 0) ? 'not-allowed' : 'pointer',
+              cursor: !folderPath ? 'not-allowed' : 'pointer',
               fontWeight: 700,
               fontSize: 13,
-              opacity: (!scanResults || scanResults.summary?.total_supported === 0) ? 0.5 : 1,
+              opacity: !folderPath ? 0.5 : 1,
             }}
-            title={!scanResults ? 'Run Scan first' : (scanResults.summary?.total_supported === 0 ? 'No supported files to ingest' : '')}
+            title={!folderPath ? 'Enter a folder path first' : ''}
           >
             ▶ Start Ingestion
           </button>
@@ -718,7 +815,7 @@ function SynthesisPanel() {
   )
 }
 
-function KnowledgeDashboard({ folderPath, onReIngest, onResetComplete }) {
+function KnowledgeDashboard({ folderPath, onResetComplete }) {
   const [stats, setStats] = useState({ nodes: 0, edges: 0, chunks: 0, lastIngestion: 'never', nodesByType: {} })
   const [recentFiles, setRecentFiles] = useState([])
   const [resetConfirming, setResetConfirming] = useState(false)
@@ -799,12 +896,6 @@ function KnowledgeDashboard({ folderPath, onReIngest, onResetComplete }) {
           ))}
         </div>
       )}
-
-      <button onClick={onReIngest} style={{
-        width: '100%', background: 'transparent', color: COLORS.accent,
-        border: `1px solid ${COLORS.accent}`, borderRadius: 6,
-        padding: '8px 14px', cursor: 'pointer', fontSize: 13,
-      }}>🔄 Re-ingest</button>
 
       {!resetConfirming ? (
         <button
@@ -1086,6 +1177,7 @@ function AidlasAlertsPanel() {
   const [watcher, setWatcher] = useState({ running: false, watching_path: null, queued: 0 })
   const seenIdsRef = useRef(new Set())
   const [flashId, setFlashId] = useState(null)
+  const [clearing, setClearing] = useState(false)
 
   const refresh = async () => {
     try {
@@ -1106,6 +1198,17 @@ function AidlasAlertsPanel() {
       const s = await apiCall('/api/watcher/status')
       setWatcher(s)
     } catch (_) {}
+  }
+
+  const handleClear = async () => {
+    if (clearing) return
+    setClearing(true)
+    try {
+      await apiCall('/api/alerts/clear', { method: 'POST' })
+      seenIdsRef.current = new Set()
+      setAlerts([])
+    } catch (_) {}
+    setClearing(false)
   }
 
   useEffect(() => {
@@ -1139,6 +1242,23 @@ function AidlasAlertsPanel() {
             </div>
           </div>
         </div>
+        {alerts.length > 0 && (
+          <button
+            onClick={handleClear}
+            disabled={clearing}
+            title="Clear all alerts from this collection"
+            style={{
+              background: 'transparent',
+              color: COLORS.muted,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontSize: 12,
+              cursor: clearing ? 'wait' : 'pointer',
+              opacity: clearing ? 0.5 : 1,
+            }}
+          >{clearing ? 'Clearing…' : '🧹 Clear'}</button>
+        )}
       </div>
 
       {alerts.length === 0 ? (
@@ -1495,7 +1615,7 @@ export default function AtlasInterface() {
             </div>
             <div>
               <SynthesisPanel />
-              <KnowledgeDashboard folderPath={folderPath} onReIngest={handleStartIngestion} onResetComplete={handleResetComplete} />
+              <KnowledgeDashboard folderPath={folderPath} onResetComplete={handleResetComplete} />
             </div>
           </div>
         </div>
