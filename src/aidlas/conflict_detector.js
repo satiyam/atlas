@@ -59,14 +59,18 @@ ${slimText(newPassage.text)}
 EXISTING PASSAGE (from file "${existingPassage.source_file}"):
 ${slimText(existingPassage.text)}`
   try {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      messages: [
-        { role: 'user', content: user },
-        { role: 'assistant', content: '{' },
-      ],
+    const debugLogger = require('../debug/debug_logger')
+    const response = await debugLogger.tracked({
+      type: 'conflict', file: newPassage.source_file || 'unknown', call: 'conflict detection', model: MODEL,
+      apiFn: () => client.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [
+          { role: 'user', content: user },
+          { role: 'assistant', content: '{' },
+        ],
+      }),
     })
     const text = response?.content?.[0]?.text || ''
     const body = text.trim().startsWith('{') ? text : '{' + text

@@ -190,12 +190,15 @@ function parseRetryAfter(err) {
   return null
 }
 
-async function callClaudeWithRetry({ system, user }) {
+async function callClaudeWithRetry({ system, user, sourceFile }) {
   const client = getClient()
   let attempt = 0
   while (true) {
     try {
-      return await client.messages.create({
+      const debugLogger = require("../debug/debug_logger")
+      return await debugLogger.tracked({
+        type: "ingest", file: sourceFile || "unknown", call: "entity extraction", model: EXTRACTION_MODEL,
+        apiFn: () => client.messages.create({
         model: EXTRACTION_MODEL,
         max_tokens: EXTRACTION_MAX_TOKENS,
         system: [
@@ -203,7 +206,7 @@ async function callClaudeWithRetry({ system, user }) {
         ],
         messages: [
           { role: 'user', content: user },
-          { role: 'assistant', content: '{' },
+            { role: 'assistant', content: '{' },
         ],
       })
     } catch (err) {
@@ -280,6 +283,7 @@ ${snippet}`
     const response = await callClaudeWithRetry({
       system: systemPrompt,
       user: userPrompt,
+      sourceFile,
     })
 
     const text = response?.content?.[0]?.text || ''

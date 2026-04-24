@@ -112,14 +112,18 @@ ${JSON.stringify(slimmedGenspark)}
 Answer the question using the passages as primary evidence. Cite filenames inline.`
 
   try {
+    const debugLogger = require('../debug/debug_logger')
     const client = getClient()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ],
-      messages: [{ role: 'user', content: userPrompt }],
+    const response = await debugLogger.tracked({
+      type: 'query', file: query, call: 'query synth', model: 'claude-sonnet-4-6',
+      apiFn: () => client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1200,
+        system: [
+          { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ],
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
     })
     return response?.content?.[0]?.text || '(no answer generated)'
   } catch (err) {

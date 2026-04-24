@@ -112,11 +112,15 @@ Requirements:
 
   let script
   try {
+    const debugLogger = require('../debug/debug_logger')
     const client = getClient()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await debugLogger.tracked({
+      type: 'synth', file: topic, call: 'podcast script', model: 'claude-sonnet-4-6',
+      apiFn: () => client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     })
     script = response?.content?.[0]?.text || buildFallbackScript(topic, nodes, external, 'empty response')
   } catch (err) {

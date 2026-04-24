@@ -52,6 +52,7 @@ function addAlert(partial) {
   list.unshift(alert)
   while (list.length > MAX_ALERTS) list.pop()
   persistAlert(alert)
+  try { require('../debug/debug_bus').emit('alert', alert) } catch (_) {}
   return alert
 }
 

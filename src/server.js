@@ -25,13 +25,16 @@ const dryRunEngine = require('./ingestion/dry_run')
 const crawler = require('./ingestion/crawler')
 const collectionManager = require('./collections/collection_manager')
 const fileWatcher = require('./aidlas/file_watcher')
-const alertsStore = require('./aidlas/alerts_store')
+const alertsStore = require("./aidlas/alerts_store")
+const debugRoutes = require("./debug/debug_routes")
 
 collectionManager.migrateLegacyIfNeeded()
 
 const app = express()
 app.use(express.json({ limit: '10mb' }))
 app.use(cors())
+
+debugRoutes(app)
 
 const PUBLIC_DIR = path.join(__dirname, '../public')
 app.use(express.static(PUBLIC_DIR))

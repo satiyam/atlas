@@ -64,11 +64,15 @@ Cite internal facts as [Source: filename]. Cite external facts as [External: tit
 
   let report
   try {
+    const debugLogger = require('../debug/debug_logger')
     const client = getClient()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await debugLogger.tracked({
+      type: 'synth', file: topic, call: 'benchmark report', model: 'claude-sonnet-4-6',
+      apiFn: () => client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     })
     report = response?.content?.[0]?.text || buildFallbackReport(topic, internalNodes, external, 'empty response')
   } catch (err) {

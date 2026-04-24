@@ -111,11 +111,15 @@ Include inline citations after factual claims: [Source: filename]
 
   let doc
   try {
+    const debugLogger = require('../debug/debug_logger')
     const client = getClient()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await debugLogger.tracked({
+      type: 'synth', file: personName, call: 'handover doc', model: 'claude-sonnet-4-6',
+      apiFn: () => client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     })
     doc = response?.content?.[0]?.text || buildFallbackHandover(personName, ctx, 'empty response')
   } catch (err) {

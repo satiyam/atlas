@@ -51,7 +51,10 @@ async function describeImageBuffer(buffer, mediaType, contextLabel = 'buffer') {
   try {
     const base64Data = Buffer.from(buffer).toString('base64')
     const client = getClient()
-    const response = await client.messages.create({
+    const debugLogger = require('../debug/debug_logger')
+    const response = await debugLogger.tracked({
+      type: 'vision', file: contextLabel, call: 'vision description', model: VISION_MODEL,
+      apiFn: () => client.messages.create({
       model: VISION_MODEL,
       max_tokens: MAX_TOKENS,
       system: [
@@ -66,6 +69,7 @@ async function describeImageBuffer(buffer, mediaType, contextLabel = 'buffer') {
           },
         ],
       }],
+    }),
     })
     const description = response?.content?.[0]?.text || ''
     return { description, described_at: new Date().toISOString() }
