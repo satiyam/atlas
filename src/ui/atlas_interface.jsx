@@ -1411,6 +1411,7 @@ export default function AtlasInterface() {
   }
 
   const [watcherStatus, setWatcherStatus] = useState({ running: false, watching_path: null })
+  const [debugOpen, setDebugOpen] = useState(false)
 
   const refreshWatcher = async () => {
     try {
@@ -1457,48 +1458,60 @@ export default function AtlasInterface() {
         </aside>
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 36, height: 36, background: COLORS.accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⚡</div>
-            <div>
-              <h1 style={{ margin: 0, color: COLORS.text, fontSize: 22, fontWeight: 800 }}>AID-LAS</h1>
-              <p style={{ margin: 0, fontSize: 12, color: COLORS.muted }}>Real-time delivery intelligence · powered by Claude + Genspark</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, background: COLORS.accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⚡</div>
+              <div>
+                <h1 style={{ margin: 0, color: COLORS.text, fontSize: 22, fontWeight: 800 }}>AID-LAS</h1>
+                <p style={{ margin: 0, fontSize: 12, color: COLORS.muted }}>Real-time delivery intelligence · powered by Claude + Genspark</p>
+              </div>
             </div>
+            <button onClick={() => setDebugOpen(o => !o)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 12, padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
+              border: `1px solid ${COLORS.border}`,
+              background: debugOpen ? COLORS.bg : 'transparent',
+              color: debugOpen ? COLORS.text : COLORS.muted,
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: debugOpen ? '#639922' : COLORS.muted, display: 'inline-block' }} />
+              Debug
+            </button>
           </div>
-
-          <ServerStatusBanner />
-          <EnvStatusBanner envStatus={envStatus} />
-
-          <AidlasAlertsPanel />
-
-          <FolderWidget
-            folderPath={folderPath}
-            setFolderPath={setFolderPath}
-            scanResults={scanResults}
-            scanError={scanError}
-            scanning={scanning}
-            dryRunning={dryRunning}
-            onScan={handleScan}
-            onDryRun={handleDryRun}
-            onStartIngestion={handleStartIngestion}
-            ingesting={ingesting}
-            ingestionResult={ingestionResult}
-            watcherRunning={watcherStatus.running}
-            watcherPath={watcherStatus.watching_path}
-            onStartWatcher={handleStartWatcher}
-            onStopWatcher={handleStopWatcher}
-          />
-
-          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
-            <div style={{ minHeight: 540 }}>
-              <ChatPanel />
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ServerStatusBanner />
+              <EnvStatusBanner envStatus={envStatus} />
+              <AidlasAlertsPanel />
+              <FolderWidget
+                folderPath={folderPath}
+                setFolderPath={setFolderPath}
+                scanResults={scanResults}
+                scanError={scanError}
+                scanning={scanning}
+                dryRunning={dryRunning}
+                onScan={handleScan}
+                onDryRun={handleDryRun}
+                onStartIngestion={handleStartIngestion}
+                ingesting={ingesting}
+                ingestionResult={ingestionResult}
+                watcherRunning={watcherStatus.running}
+                watcherPath={watcherStatus.watching_path}
+                onStartWatcher={handleStartWatcher}
+                onStopWatcher={handleStopWatcher}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
+                <div style={{ minHeight: 540 }}>
+                  <ChatPanel />
+                </div>
+                <div>
+                  <SynthesisPanel />
+                  <KnowledgeDashboard folderPath={folderPath} onResetComplete={handleResetComplete} />
+                </div>
+              </div>
             </div>
-            <div>
-              <SynthesisPanel />
-              <KnowledgeDashboard folderPath={folderPath} onResetComplete={handleResetComplete} />
-            </div>
+            {debugOpen && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} watcherStatus={watcherStatus} />}
           </div>
         </div>
-
         {showDryRunModal && dryRunReport && (
           <DryRunModal
             report={dryRunReport}
@@ -1511,7 +1524,7 @@ export default function AtlasInterface() {
   )
 }
 
-function DebugPanel({ open, onClose }) {
+function DebugPanel({ open, onClose, watcherStatus }) {
   const [activeTab, setActiveTab] = useState('logs')
   const [logs, setLogs] = useState([])
   const [summary, setSummary] = useState(null)
@@ -1537,10 +1550,11 @@ function DebugPanel({ open, onClose }) {
 
   return (
     <div style={{
-      position: 'fixed', top: 0, right: 0, width: 320, height: '100vh',
+      width: 320, minWidth: 320, height: '100vh',
       background: COLORS.panel, borderLeft: `1px solid ${COLORS.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 1000,
+      display: 'flex', flexDirection: 'column', flexShrink: 0,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      overflowY: 'auto',
     }}>
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Debug</span>
