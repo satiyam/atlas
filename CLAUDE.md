@@ -35,8 +35,6 @@ TIER 1 — INGESTION
        ↓
   Multi-Modal File Parser     (skills/ingestion.md)
        ↓
-  PII Redactor                (skills/pii_redactor.md)
-       ↓
   Entity Extractor            (skills/entity_extractor.md)
        ↓
   Knowledge Graph Store       (skills/graph_store.md)
@@ -112,6 +110,20 @@ Atlas processes ALL of the following file types:
 **Skipped (unsupported):** `.zip`, `.exe`, `.db`, `.dmg`, `.iso`, encrypted PDFs,
 files with no extension, files under 100 bytes, files over 500MB.
 
+### Embedded visuals in PDF / DOCX / PPTX
+
+When parsing `.pdf`, `.docx`, and `.pptx`, Atlas extracts embedded images, describes
+each via Claude Vision, and appends the descriptions to the document's `raw_text` as
+`[VISUAL N (page X / slide Y)] <description>` lines so the entity extractor picks them
+up naturally. Handled in `src/ingestion/visual_extractor.js`.
+
+Guardrails: SHA-256 dedup (same image on every page won't describe twice), per-file cap
+via `ATLAS_MAX_VISUALS_PER_FILE` (default 20), min-size filter at 4KB (skips icons /
+logos / spacers), media-type detection by magic bytes (PNG, JPEG, GIF only).
+
+The dry-run engine peeks into each doc to count visuals and surfaces the estimated
+Vision cost (~$0.005/image) alongside the Whisper cost estimate.
+
 ---
 
 ## Audio and Video Processing
@@ -153,8 +165,8 @@ Before any ingestion, the user can click **[Dry Run]** to:
 **No files are processed. No graph is written during dry run.**
 
 The "You Decide" screen shows flagged files with default **Skip**. User toggles each to Allow.
-Files set to Allow still pass through PII Redactor — RED content is blocked automatically
-regardless of the user's allow decision.
+Allowed files are ingested verbatim — the PII redactor was removed by design; users are
+responsible for choosing what to ingest via the filename flagger and Allow/Skip toggle.
 
 User decisions are logged to `logs/audit_log.jsonl` before ingestion starts.
 
@@ -166,7 +178,6 @@ User decisions are logged to `logs/audit_log.jsonl` before ingestion starts.
 skills/governance.md          ← MASTER RULES — ALL skills inherit from this
     ├── skills/ingestion.md        ← deep crawler + multi-modal parser rules
     ├── skills/dry_run.md          ← dry run engine rules
-    ├── skills/pii_redactor.md     ← classification + transformation
     ├── skills/entity_extractor.md ← extraction (refs schema.json at runtime)
     ├── skills/graph_store.md      ← CDC + persistence
     ├── skills/query_router.md     ← routing + refusal
@@ -252,13 +263,15 @@ Load from `.env` file at startup. Never hardcode API keys.
 ## Governance — Non-Negotiable Rules
 
 1. Every response must cite exact source file, path, and timestamp
-2. RED-classified content is NEVER returned to the user under any circumstances
-3. Every REFUSE routing decision must be logged to `logs/audit_log.jsonl`
-4. Sensitive filename detection runs on every crawl — even incremental runs
-5. PII Redactor runs on ALL parsed content regardless of source format
-6. Dry run decisions (Skip/Allow) are logged before ingestion proceeds
-7. GDPR + PDPA Singapore compliance governs all data handling
-8. Right to erasure: purge by file path removes all derived nodes and edges
+2. Every REFUSE routing decision must be logged to `logs/audit_log.jsonl`
+3. Sensitive filename detection runs on every crawl — even incremental runs
+4. Dry run decisions (Skip/Allow) are logged before ingestion proceeds
+5. Right to erasure: purge by file path removes all derived nodes and edges
+
+> **Removed by design:** the PII redactor. Users are expected to curate their own
+> ingestion folder and use the "You Decide" filename flagger to skip files they do
+> not want sent to Claude. Allowed files are ingested verbatim — full text of every
+> file is transmitted to the Anthropic API for entity extraction.
 
 ---
 
@@ -270,7 +283,6 @@ Load from `.env` file at startup. Never hardcode API keys.
 | Deep Recursive Crawler | ✅ Complete | 20/20 passing |
 | Dry Run Engine | ✅ Complete | 20/20 passing |
 | Multi-Modal File Parser | ✅ Complete | 5/5 passing |
-| PII Redactor | ✅ Complete | 19/19 passing |
 | Entity Extractor | ✅ Complete | 18/18 passing |
 | Knowledge Graph Store + Delta Tracker | ✅ Complete | 17/17 passing |
 | Query Router | ✅ Complete | 17/17 passing |

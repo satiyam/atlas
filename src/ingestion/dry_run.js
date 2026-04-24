@@ -24,6 +24,8 @@ const VIDEO_MINUTES_PER_MB = 0.5
 const OVERHEAD_MULTIPLIER = 1.55
 const GRAPH_COMMIT_SECONDS = 300
 const WHISPER_COST_PER_MINUTE = 0.003
+const VISION_COST_PER_IMAGE = 0.005
+const VISUAL_DOC_EXTENSIONS = new Set(['.pdf', '.docx', '.pptx'])
 
 const DOCUMENT_NODES_PER_FILE = 3
 const DOCUMENT_EDGES_PER_FILE = 4
@@ -98,9 +100,14 @@ function estimateTime(files) {
   }
 }
 
+const MAX_VISUALS_PER_FILE_CEILING = 20
+const VISION_CEILING_NOTE = `ceiling estimate — dry run does not open documents; assumes up to ${MAX_VISUALS_PER_FILE_CEILING} images per file`
+
 function estimateCost(files) {
   const breakdown = {}
-  let total = 0
+  let transcriptionTotal = 0
+  let visualCeilingTotal = 0
+  let visualCeilingCount = 0
 
   for (const f of files) {
     const ext = (f.extension || '').toLowerCase()
@@ -109,25 +116,45 @@ function estimateCost(files) {
 
     if (isAudio(ext)) minutes = sizeMb * AUDIO_MINUTES_PER_MB
     else if (isVideo(ext)) minutes = sizeMb * VIDEO_MINUTES_PER_MB
-    else continue
 
-    const cost = minutes * WHISPER_COST_PER_MINUTE
-    total += cost
+    if (minutes > 0) {
+      const cost = minutes * WHISPER_COST_PER_MINUTE
+      transcriptionTotal += cost
+      if (!breakdown[ext]) breakdown[ext] = { count: 0, minutes: 0, usd: 0 }
+      breakdown[ext].count++
+      breakdown[ext].minutes += minutes
+      breakdown[ext].usd += cost
+    }
 
-    if (!breakdown[ext]) breakdown[ext] = { count: 0, minutes: 0, usd: 0 }
-    breakdown[ext].count++
-    breakdown[ext].minutes += minutes
-    breakdown[ext].usd += cost
+    if (VISUAL_DOC_EXTENSIONS.has(ext)) {
+      const ceilingImages = MAX_VISUALS_PER_FILE_CEILING
+      const cost = ceilingImages * VISION_COST_PER_IMAGE
+      visualCeilingTotal += cost
+      visualCeilingCount += ceilingImages
+      if (!breakdown[ext]) breakdown[ext] = { count: 0, visuals_max: 0, usd: 0 }
+      breakdown[ext].count = (breakdown[ext].count || 0) + 1
+      breakdown[ext].visuals_max = (breakdown[ext].visuals_max || 0) + ceilingImages
+      breakdown[ext].usd = (breakdown[ext].usd || 0) + cost
+    }
   }
 
   for (const key of Object.keys(breakdown)) {
-    breakdown[key].minutes = Math.round(breakdown[key].minutes * 10) / 10
+    if (breakdown[key].minutes !== undefined) {
+      breakdown[key].minutes = Math.round(breakdown[key].minutes * 10) / 10
+    }
     breakdown[key].usd = Math.round(breakdown[key].usd * 10000) / 10000
   }
 
+  const total = transcriptionTotal + visualCeilingTotal
   return {
     total_usd: Math.round(total * 10000) / 10000,
+    transcription_usd: Math.round(transcriptionTotal * 10000) / 10000,
+    visual_usd: Math.round(visualCeilingTotal * 10000) / 10000,
+    visual_count: visualCeilingCount,
+    visual_is_ceiling: true,
+    visual_note: VISION_CEILING_NOTE,
     whisper_rate_per_minute: WHISPER_COST_PER_MINUTE,
+    vision_rate_per_image: VISION_COST_PER_IMAGE,
     breakdown_by_type: breakdown,
   }
 }
@@ -278,17 +305,22 @@ function formatReport(report) {
   lines.push('')
 
   lines.push(divider)
-  lines.push('COST ESTIMATE (Whisper API)')
+  lines.push('COST ESTIMATE (Whisper + Vision API)')
   lines.push(divider)
   const costBreakdown = report.cost_estimate.breakdown_by_type
   if (Object.keys(costBreakdown).length === 0) {
-    lines.push('  No audio or video files — $0.00')
+    lines.push('  No transcription or visual costs — $0.00')
   } else {
     for (const [ext, info] of Object.entries(costBreakdown)) {
-      lines.push(`  ${ext.padEnd(8)} ${String(info.count).padStart(4)} files  ${String(info.minutes).padStart(8)} min  $${info.usd.toFixed(4)}`)
+      const countPart = info.count !== undefined ? `${String(info.count).padStart(4)} files` : '          '
+      const minutesPart = info.minutes !== undefined ? `${String(info.minutes).padStart(6)} min` : '           '
+      const visualsPart = info.visuals !== undefined ? `${String(info.visuals).padStart(4)} imgs` : '          '
+      lines.push(`  ${ext.padEnd(8)} ${countPart}  ${minutesPart}  ${visualsPart}  $${info.usd.toFixed(4)}`)
     }
     lines.push('')
-    lines.push(`  💵 Total: $${report.cost_estimate.total_usd.toFixed(4)}`)
+    lines.push(`  Transcription: $${report.cost_estimate.transcription_usd.toFixed(4)}`)
+    lines.push(`  Visuals:       up to $${report.cost_estimate.visual_usd.toFixed(4)} (max ${report.cost_estimate.visual_count} image(s) across PDF/DOCX/PPTX)`)
+    lines.push(`  💵 Max total:   $${report.cost_estimate.total_usd.toFixed(4)}`)
   }
   lines.push('')
 
@@ -314,8 +346,8 @@ function formatReport(report) {
       lines.push(`  ... and ${report.flagged_files.length - 20} more`)
     }
     lines.push('')
-    lines.push('  ℹ  Files set to Allow still pass through PII Redactor.')
-    lines.push('     Content classified RED will be blocked automatically.')
+    lines.push('  ℹ  Allowed files are sent to Claude verbatim — no redaction step.')
+    lines.push('     Skip anything you do not want uploaded.')
     lines.push('')
   }
 

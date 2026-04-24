@@ -2,10 +2,11 @@ const fs = require('fs')
 const path = require('path')
 
 const deltaTracker = require('./delta_tracker')
+const collectionManager = require('../collections/collection_manager')
 
-const NODES_FILE = path.join(__dirname, '../../graph/nodes.json')
-const EDGES_FILE = path.join(__dirname, '../../graph/edges.json')
-const INGESTION_LOG = path.join(__dirname, '../../logs/ingestion_log.jsonl')
+function paths() {
+  return collectionManager.getActivePaths()
+}
 
 function readJSON(file) {
   try {
@@ -25,12 +26,12 @@ function writeJSON(file, data) {
 }
 
 function readNodes() {
-  const data = readJSON(NODES_FILE)
+  const data = readJSON(paths().nodesFile)
   return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {}
 }
 
 function readEdges() {
-  const data = readJSON(EDGES_FILE)
+  const data = readJSON(paths().edgesFile)
   return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {}
 }
 
@@ -54,7 +55,7 @@ function upsertNode(node) {
     nodes[node.id] = { ...node, created_at: new Date().toISOString() }
   }
 
-  writeJSON(NODES_FILE, nodes)
+  writeJSON(paths().nodesFile, nodes)
 
   deltaTracker.appendEvent({
     event_type: 'UPSERT',
@@ -85,7 +86,7 @@ function upsertEdge(edge) {
     edges[key] = { ...edge, id: key, created_at: new Date().toISOString() }
   }
 
-  writeJSON(EDGES_FILE, edges)
+  writeJSON(paths().edgesFile, edges)
 
   deltaTracker.appendEvent({
     event_type: 'UPSERT',
@@ -132,8 +133,8 @@ function purgeByFile(filePath) {
     }
   }
 
-  writeJSON(NODES_FILE, nodes)
-  writeJSON(EDGES_FILE, edges)
+  writeJSON(paths().nodesFile, nodes)
+  writeJSON(paths().edgesFile, edges)
 
   return { purged_nodes: purgedNodeIds.length, purged_edges: purgedEdges }
 }
@@ -180,9 +181,10 @@ function readEdgesArray() {
 
 function logIngestionSummary(summary) {
   try {
-    const dir = path.dirname(INGESTION_LOG)
+    const target = paths().ingestionLog
+    const dir = path.dirname(target)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.appendFileSync(INGESTION_LOG, JSON.stringify({ ...summary, logged_at: new Date().toISOString() }) + '\n', 'utf8')
+    fs.appendFileSync(target, JSON.stringify({ ...summary, logged_at: new Date().toISOString() }) + '\n', 'utf8')
   } catch (_) {}
 }
 
@@ -191,8 +193,10 @@ async function runIncrementalIngestion(rootPath, options = {}) {
 
   const crawler = require('../ingestion/crawler')
   const fileParser = require('../ingestion/file_parser')
-  const piiRedactor = require('../ingestion/pii_redactor')
   const entityExtractor = require('../ingestion/entity_extractor')
+  const chunker = require('../embeddings/chunker')
+  const embedClient = require('../embeddings/embed_client')
+  const vectorStore = require('../embeddings/vector_store')
 
   const lastCursor = deltaTracker.getLastCursor()
   const crawlResults = await crawler.crawl(rootPath, lastCursor)
@@ -207,11 +211,32 @@ async function runIncrementalIngestion(rootPath, options = {}) {
 
   const parsedFiles = await fileParser.parseBatch(filePaths)
 
-  const redactResult = piiRedactor.redactBatch(parsedFiles)
-
-  const extractionResults = await entityExtractor.extractBatch(redactResult.results)
+  const extractionResults = await entityExtractor.extractBatch(parsedFiles)
 
   const validated = entityExtractor.mergeAndValidate(extractionResults)
+
+  let chunksEmbedded = 0
+  let filesEmbedded = 0
+  let embeddingErrors = 0
+  for (const parsed of parsedFiles) {
+    if (!parsed || !parsed.raw_text || !parsed.raw_text.trim()) continue
+    if (parsed.checksum && vectorStore.hasChecksum(parsed.checksum)) continue
+    try {
+      vectorStore.removeByFile(parsed.file_path)
+      const chunks = chunker.chunkParsedFile(parsed)
+      if (chunks.length === 0) continue
+      const vectors = await embedClient.embedBatch(chunks.map(c => c.text))
+      const enriched = chunks.map((c, i) => ({ ...c, vector: vectors[i] })).filter(c => Array.isArray(c.vector))
+      if (enriched.length > 0) {
+        vectorStore.upsertChunks(enriched)
+        chunksEmbedded += enriched.length
+        filesEmbedded++
+      }
+    } catch (err) {
+      embeddingErrors++
+      console.error(`[embeddings] failed for ${parsed.file_path}: ${err.message}`)
+    }
+  }
 
   let nodesAdded = 0
   let nodesUpdated = 0
@@ -229,19 +254,32 @@ async function runIncrementalIngestion(rootPath, options = {}) {
 
   deltaTracker.writeCheckpoint()
 
+  const apiErrors = extractionResults
+    .filter(r => r && r.api_error)
+    .map(r => ({ source_file: r.source_file, error: r.api_error }))
+  const parseErrors = extractionResults
+    .filter(r => r && r.parse_error)
+    .map(r => ({ source_file: r.source_file, raw_preview: r.raw_preview || null }))
+  const extractionsWithSignal = extractionResults.length
+  const filesSkippedByChecksum = extractionResults.filter(r => r && r.skipped_by_checksum).length
+
   const duration = Date.now() - startedAt
   const summary = {
     root_path: rootPath,
-    files_processed: redactResult.processed,
-    files_blocked_red: redactResult.blocked,
-    files_redacted_amber: redactResult.redacted,
-    extraction_results: extractionResults.length,
+    files_processed: parsedFiles.length,
+    extractions_with_signal: extractionsWithSignal,
+    files_skipped_by_checksum: filesSkippedByChecksum,
     nodes_added: nodesAdded,
     nodes_updated: nodesUpdated,
     edges_added: edgesAdded,
+    files_embedded: filesEmbedded,
+    chunks_embedded: chunksEmbedded,
+    embedding_errors: embeddingErrors,
     rejected: validated.rejected?.length || 0,
     duration_ms: duration,
     crawl_errors: crawlResults.errors?.length || 0,
+    api_errors: apiErrors,
+    parse_errors: parseErrors,
   }
 
   logIngestionSummary(summary)
@@ -249,8 +287,12 @@ async function runIncrementalIngestion(rootPath, options = {}) {
 }
 
 function _resetForTests() {
-  try { fs.writeFileSync(NODES_FILE, '{}', 'utf8') } catch (_) {}
-  try { fs.writeFileSync(EDGES_FILE, '{}', 'utf8') } catch (_) {}
+  let target
+  try {
+    target = paths()
+  } catch (_) { return }
+  try { fs.writeFileSync(target.nodesFile, '{}', 'utf8') } catch (_) {}
+  try { fs.writeFileSync(target.edgesFile, '{}', 'utf8') } catch (_) {}
 }
 
 module.exports = {
@@ -266,7 +308,5 @@ module.exports = {
   writeJSON,
   extractKeywords,
   logIngestionSummary,
-  NODES_FILE,
-  EDGES_FILE,
   _resetForTests,
 }

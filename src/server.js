@@ -4,6 +4,15 @@ const cors = require('cors')
 
 require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
+// Crash guard — keep the server alive through unhandled errors from parsers,
+// ffmpeg streams, dangling promises, etc. Log and continue rather than exit.
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[atlas] UnhandledRejection:', reason?.stack || reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[atlas] UncaughtException:', err?.stack || err)
+})
+
 const graphStore = require('./graph/graph_store')
 const deltaTracker = require('./graph/delta_tracker')
 const queryRouter = require('./query/query_router')
@@ -14,6 +23,11 @@ const handoverBuilder = require('./synthesis/handover_builder')
 const benchmarkReporter = require('./synthesis/benchmark_reporter')
 const dryRunEngine = require('./ingestion/dry_run')
 const crawler = require('./ingestion/crawler')
+const collectionManager = require('./collections/collection_manager')
+const fileWatcher = require('./aidlas/file_watcher')
+const alertsStore = require('./aidlas/alerts_store')
+
+collectionManager.migrateLegacyIfNeeded()
 
 const app = express()
 app.use(express.json({ limit: '10mb' }))
@@ -36,22 +50,96 @@ function handle(handler) {
 
 app.get('/api/health', handle(() => ({ ok: true, timestamp: new Date().toISOString() })))
 
-app.post('/api/scan', handle(async (req) => {
+app.post('/api/scan', handle(async (req, res) => {
+  const fs = require('fs')
+  const path = require('path')
   const { folderPath } = req.body || {}
-  if (!folderPath) throw new Error('folderPath is required')
+  if (!folderPath) {
+    res.status(400).json({ error: 'folderPath is required' })
+    return
+  }
+  if (!path.isAbsolute(folderPath)) {
+    res.status(400).json({ error: `folderPath must be an absolute path. Received: "${folderPath}". On Windows, paste the full path (e.g. C:\\Users\\You\\Documents).` })
+    return
+  }
+  let stat
+  try {
+    stat = fs.statSync(folderPath)
+  } catch (err) {
+    res.status(400).json({ error: `Cannot access folder "${folderPath}": ${err.code || err.message}` })
+    return
+  }
+  if (!stat.isDirectory()) {
+    res.status(400).json({ error: `Path is not a directory: "${folderPath}"` })
+    return
+  }
   const cursor = deltaTracker.getLastCursor()
   return crawler.crawl(folderPath, cursor)
 }))
 
-app.post('/api/dry-run', handle(async (req) => {
-  const { crawlResults, rootPath } = req.body || {}
-  if (!crawlResults) throw new Error('crawlResults is required')
-  return dryRunEngine.generateReport(crawlResults, rootPath || null)
+app.post('/api/dry-run', handle(async (req, res) => {
+  const fs = require('fs')
+  const path = require('path')
+  const { folderPath, crawlResults, rootPath } = req.body || {}
+
+  if (crawlResults) {
+    return dryRunEngine.generateReport(crawlResults, rootPath || null)
+  }
+
+  if (!folderPath) {
+    res.status(400).json({ error: 'folderPath is required' })
+    return
+  }
+  if (!path.isAbsolute(folderPath)) {
+    res.status(400).json({ error: `folderPath must be an absolute path. Received: "${folderPath}".` })
+    return
+  }
+  try {
+    if (!fs.statSync(folderPath).isDirectory()) {
+      res.status(400).json({ error: `Path is not a directory: "${folderPath}"` })
+      return
+    }
+  } catch (err) {
+    res.status(400).json({ error: `Cannot access folder "${folderPath}": ${err.code || err.message}` })
+    return
+  }
+
+  const cursor = deltaTracker.getLastCursor()
+  const fresh = await crawler.crawl(folderPath, cursor)
+  return dryRunEngine.generateReport(fresh, folderPath)
 }))
 
-app.post('/api/ingest', handle(async (req) => {
+app.get('/api/env-status', handle(() => ({
+  anthropic: Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.trim().length > 10),
+  openai: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 10),
+  genspark: Boolean(process.env.GENSPARK_API_KEY && process.env.GENSPARK_API_KEY.trim().length > 10),
+})))
+
+app.post('/api/ingest', handle(async (req, res) => {
+  const fs = require('fs')
+  const path = require('path')
   const { folderPath, skipFlagged } = req.body || {}
-  if (!folderPath) throw new Error('folderPath is required')
+  if (!folderPath) {
+    res.status(400).json({ error: 'folderPath is required' })
+    return
+  }
+  if (!path.isAbsolute(folderPath)) {
+    res.status(400).json({ error: `folderPath must be an absolute path. Received: "${folderPath}".` })
+    return
+  }
+  try {
+    if (!fs.statSync(folderPath).isDirectory()) {
+      res.status(400).json({ error: `Path is not a directory: "${folderPath}"` })
+      return
+    }
+  } catch (err) {
+    res.status(400).json({ error: `Cannot access folder "${folderPath}": ${err.code || err.message}` })
+    return
+  }
+  try {
+    const activeId = collectionManager.getActiveCollection()
+    if (activeId) collectionManager.updateCollection(activeId, { rootPath: folderPath })
+  } catch (_) {}
   return graphStore.runIncrementalIngestion(folderPath, { skipFlagged })
 }))
 
@@ -79,16 +167,125 @@ app.get('/api/stats', handle(() => {
   const nodes = graphStore.readNodes()
   const edges = graphStore.readEdges()
   const cursor = deltaTracker.getLastCursor()
+  const activeId = collectionManager.getActiveCollection()
+  const meta = activeId ? collectionManager.getCollectionMeta(activeId) : null
   const nodesByType = {}
   for (const node of Object.values(nodes)) {
     nodesByType[node.type] = (nodesByType[node.type] || 0) + 1
   }
+  let chunks = 0
+  try {
+    const vectorStore = require('./embeddings/vector_store')
+    chunks = vectorStore.stats().total_chunks
+  } catch (_) {}
   return {
+    collection_id: activeId,
+    collection_name: meta?.name || null,
+    collection_root: meta?.rootPath || null,
     nodes: Object.keys(nodes).length,
     edges: Object.keys(edges).length,
+    chunks,
     lastIngestion: cursor,
     nodesByType,
   }
+}))
+
+app.post('/api/reset-graph', handle(async (req) => {
+  const fs = require('fs')
+  const path = require('path')
+  const { confirm } = req.body || {}
+  if (confirm !== 'RESET') {
+    throw new Error('Reset requires confirm:"RESET" in request body to prevent accidents.')
+  }
+
+  const paths = collectionManager.getActivePaths()
+  const filesToClear = [
+    { file: paths.nodesFile, content: '{}' },
+    { file: paths.edgesFile, content: '{}' },
+    { file: paths.embeddingsFile, content: '{}' },
+    { file: paths.deltaLog, content: '' },
+    { file: paths.ingestionLog, content: '' },
+  ]
+
+  const cleared = []
+  for (const { file, content } of filesToClear) {
+    try {
+      const dir = path.dirname(file)
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(file, content, 'utf8')
+      cleared.push(path.basename(file))
+    } catch (err) {
+      console.error(`[server] reset-graph: failed to clear ${file} — ${err.message}`)
+    }
+  }
+
+  try {
+    const vectorStore = require('./embeddings/vector_store')
+    vectorStore._resetForTests()
+  } catch (_) {}
+
+  try {
+    const auditPath = paths.auditLog
+    if (!fs.existsSync(path.dirname(auditPath))) fs.mkdirSync(path.dirname(auditPath), { recursive: true })
+    fs.appendFileSync(auditPath, JSON.stringify({
+      event: 'GRAPH_RESET',
+      collection_id: paths.id,
+      cleared,
+      timestamp: new Date().toISOString(),
+    }) + '\n', 'utf8')
+  } catch (_) {}
+
+  return { ok: true, collection_id: paths.id, cleared }
+}))
+
+app.get('/api/collections', handle(() => collectionManager.listCollections()))
+
+app.post('/api/collections', handle(async (req) => {
+  const { name, rootPath } = req.body || {}
+  if (!name) throw new Error('name is required')
+  const meta = collectionManager.createCollection({ name, rootPath: rootPath || null })
+  return { ok: true, collection: meta, active: collectionManager.getActiveCollection() }
+}))
+
+app.post('/api/collections/:id/activate', handle(async (req) => {
+  const id = req.params.id
+  collectionManager.setActiveCollection(id)
+  return { ok: true, active: id }
+}))
+
+app.patch('/api/collections/:id', handle(async (req) => {
+  const id = req.params.id
+  const patch = req.body || {}
+  const meta = collectionManager.updateCollection(id, patch)
+  return { ok: true, collection: meta }
+}))
+
+app.delete('/api/collections/:id', handle(async (req) => {
+  const id = req.params.id
+  const result = collectionManager.deleteCollection(id)
+  return { ok: true, active: result.active }
+}))
+
+app.post('/api/watcher/start', handle(async (req) => {
+  const { folderPath } = req.body || {}
+  if (!folderPath) throw new Error('folderPath is required')
+  return await fileWatcher.start(folderPath)
+}))
+
+app.post('/api/watcher/stop', handle(async () => {
+  return await fileWatcher.stop()
+}))
+
+app.get('/api/watcher/status', handle(() => fileWatcher.status()))
+
+app.get('/api/alerts', handle((req) => {
+  const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20))
+  return { alerts: alertsStore.listAlerts({ limit }) }
+}))
+
+app.post('/api/alerts/:id/ack', handle((req) => {
+  const alert = alertsStore.acknowledge(req.params.id)
+  return { ok: true, alert }
 }))
 
 app.get('/api/recent-files', handle(() => {

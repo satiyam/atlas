@@ -84,29 +84,36 @@ describe('estimateTime', () => {
 })
 
 describe('estimateCost', () => {
-  test('returns 0 when no audio or video files present', () => {
-    const files = [makeFile('.docx', 10), makeFile('.pdf', 20), makeFile('.txt', 5)]
+  test('returns 0 when no audio, video, or visual-bearing document files present', async () => {
+    const files = [makeFile('.txt', 5), makeFile('.csv', 2)]
     const result = estimateCost(files)
     expect(result.total_usd).toBe(0)
     expect(Object.keys(result.breakdown_by_type).length).toBe(0)
   })
 
-  test('computes mp3 cost at size_mb × 1.0 min × $0.003', () => {
+  test('computes mp3 cost at size_mb × 1.0 min × $0.003', async () => {
     const result = estimateCost([makeFile('.mp3', 60)])
-    expect(result.total_usd).toBeCloseTo(0.18, 4)
+    expect(result.transcription_usd).toBeCloseTo(0.18, 4)
     expect(result.breakdown_by_type['.mp3'].count).toBe(1)
   })
 
-  test('computes mp4 cost at size_mb × 0.5 min × $0.003', () => {
+  test('computes mp4 cost at size_mb × 0.5 min × $0.003', async () => {
     const result = estimateCost([makeFile('.mp4', 100)])
-    expect(result.total_usd).toBeCloseTo(0.15, 4)
+    expect(result.transcription_usd).toBeCloseTo(0.15, 4)
   })
 
-  test('sums across multiple audio/video extensions', () => {
+  test('sums across multiple audio/video extensions', async () => {
     const files = [makeFile('.mp3', 10), makeFile('.m4a', 5), makeFile('.wav', 3), makeFile('.mp4', 20)]
     const result = estimateCost(files)
     const expected = (10 * 1.0 + 5 * 1.0 + 3 * 1.0 + 20 * 0.5) * 0.003
-    expect(result.total_usd).toBeCloseTo(expected, 4)
+    expect(result.transcription_usd).toBeCloseTo(expected, 4)
+  })
+
+  test('includes visual fields for document extensions', async () => {
+    const result = estimateCost([makeFile('.docx', 1)])
+    expect(result).toHaveProperty('visual_usd')
+    expect(result).toHaveProperty('visual_count')
+    expect(result).toHaveProperty('transcription_usd')
   })
 })
 
@@ -140,7 +147,7 @@ describe('estimateGraphSize', () => {
 })
 
 describe('generateReport', () => {
-  test('returns a report with all required top-level fields', () => {
+  test('returns a report with all required top-level fields', async () => {
     const crawlResults = fakeCrawlResults({
       changed: [makeFile('.docx', 1), makeFile('.pdf', 2), makeFile('.mp3', 10)],
       unsupported: [{ filename: 'x.zip', reason: 'unsupported_extension', extension: '.zip', size_bytes: 1024 }],
@@ -165,13 +172,13 @@ describe('generateReport', () => {
     expect(report.graph_estimate.min_nodes).toBeLessThan(report.graph_estimate.max_nodes)
   })
 
-  test('cost_estimate is 0 when crawl has no audio files', () => {
-    const crawlResults = fakeCrawlResults({ changed: [makeFile('.docx', 5), makeFile('.txt', 2)] })
+  test('cost_estimate is 0 when crawl has no audio or visual-bearing files', async () => {
+    const crawlResults = fakeCrawlResults({ changed: [makeFile('.txt', 2), makeFile('.csv', 3)] })
     const report = generateReport(crawlResults, '/test')
     expect(report.cost_estimate.total_usd).toBe(0)
   })
 
-  test('surfaces warning for flagged files', () => {
+  test('surfaces warning for flagged files', async () => {
     const crawlResults = fakeCrawlResults({
       changed: [makeFile('.docx', 1)],
       flagged: [{ filename: 'salary.xlsx', size_bytes: 1024, matched_pattern: '/salary/i' }],
@@ -181,7 +188,7 @@ describe('generateReport', () => {
     expect(types).toContain('sensitive_filenames')
   })
 
-  test('surfaces warning for oversized files', () => {
+  test('surfaces warning for oversized files', async () => {
     const crawlResults = fakeCrawlResults({
       changed: [makeFile('.docx', 1)],
       unsupported: [{ filename: 'huge.mp4', reason: 'above_max_size', size_bytes: 600 * 1024 * 1024 }],
@@ -193,7 +200,7 @@ describe('generateReport', () => {
 })
 
 describe('formatReport', () => {
-  test('produces a non-empty, multi-line human-readable string', () => {
+  test('produces a non-empty, multi-line human-readable string', async () => {
     const crawlResults = fakeCrawlResults({
       changed: [makeFile('.docx', 2), makeFile('.mp3', 5)],
       flagged: [{ filename: 'payroll.xlsx', size_bytes: 2048, matched_pattern: '/payroll/i' }],

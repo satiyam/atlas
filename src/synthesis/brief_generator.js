@@ -108,7 +108,7 @@ Include inline citations after factual claims: [Source: filename]
     const client = getClient()
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2500,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })
     brief = response?.content?.[0]?.text || buildFallbackBrief(projectName, bundle, 'empty response')

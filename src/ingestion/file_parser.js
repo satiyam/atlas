@@ -5,6 +5,10 @@ const crypto = require('crypto')
 const audioTranscriber = require('./audio_transcriber')
 const videoProcessor = require('./video_processor')
 const imageDescriber = require('./image_describer')
+const visualExtractor = require('./visual_extractor')
+
+const VISUAL_DESCRIBE_CONCURRENCY = 3
+const APPROX_COST_PER_VISUAL_USD = 0.005
 
 function loadMammoth() { return require('mammoth') }
 function loadPdfParse() { return require('pdf-parse') }
@@ -15,9 +19,13 @@ function sha256(text) {
   return crypto.createHash('sha256').update(text || '', 'utf8').digest('hex')
 }
 
+const { auditLogPath } = require('../collections/paths')
+
 function logError(context, err) {
   try {
-    const logPath = path.join(__dirname, '../../logs/audit_log.jsonl')
+    const logPath = auditLogPath()
+    const dir = path.dirname(logPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     const line = JSON.stringify({
       event: 'PARSE_ERROR',
       context,
@@ -36,6 +44,62 @@ function makeMetadata(partial = {}) {
     page_count: partial.page_count ?? null,
     duration_seconds: partial.duration_seconds ?? null,
     transcription_cost_usd: partial.transcription_cost_usd ?? null,
+    visual_count: partial.visual_count ?? null,
+    visual_cost_usd: partial.visual_cost_usd ?? null,
+  }
+}
+
+async function describeVisualsWithConcurrency(visuals, limit) {
+  if (!visuals || visuals.length === 0) return []
+  const results = new Array(visuals.length)
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(limit, visuals.length) }, async () => {
+    while (true) {
+      const idx = cursor++
+      if (idx >= visuals.length) return
+      const v = visuals[idx]
+      try {
+        const label = v.source || `visual_${idx}`
+        const res = await imageDescriber.describeImageBuffer(v.buffer, v.mediaType, label)
+        results[idx] = { ...v, ...res }
+      } catch (err) {
+        results[idx] = { ...v, description: '', error: err.message }
+      }
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+function formatVisualLocation(v, extNoDot) {
+  if (extNoDot === 'pdf' && v.page) return `page ${v.page}`
+  if (extNoDot === 'pptx' && v.slide) return `slide ${v.slide}`
+  return null
+}
+
+function appendVisualsToText(baseText, described, extNoDot) {
+  const usable = (described || []).filter(d => d.description && d.description.trim().length > 0)
+  if (usable.length === 0) return baseText
+  const lines = ['', '[VISUALS EXTRACTED FROM DOCUMENT]']
+  usable.forEach((d, i) => {
+    const loc = formatVisualLocation(d, extNoDot)
+    const prefix = loc ? `[VISUAL ${i + 1} (${loc})]` : `[VISUAL ${i + 1}]`
+    lines.push(`${prefix} ${d.description.trim()}`)
+  })
+  return `${baseText || ''}\n${lines.join('\n')}`
+}
+
+async function attachVisuals(filePath, extNoDot, baseText) {
+  const extracted = await visualExtractor.extractVisuals(filePath, extNoDot)
+  if (!extracted || extracted.length === 0) {
+    return { rawText: baseText, visual_count: 0, visual_cost_usd: 0 }
+  }
+  const described = await describeVisualsWithConcurrency(extracted, VISUAL_DESCRIBE_CONCURRENCY)
+  const successful = described.filter(d => d.description && d.description.trim().length > 0).length
+  return {
+    rawText: appendVisualsToText(baseText, described, extNoDot),
+    visual_count: successful,
+    visual_cost_usd: Math.round(successful * APPROX_COST_PER_VISUAL_USD * 10000) / 10000,
   }
 }
 
@@ -58,7 +122,12 @@ async function parseDocx(filePath, stat, extNoDot) {
   try {
     const mammoth = loadMammoth()
     const result = await mammoth.extractRawText({ path: filePath })
-    return buildOutput({ filePath, stat, extNoDot, rawText: result.value })
+    const { rawText, visual_count, visual_cost_usd } = await attachVisuals(filePath, extNoDot, result.value)
+    return buildOutput({
+      filePath, stat, extNoDot,
+      rawText,
+      metadata: { visual_count, visual_cost_usd },
+    })
   } catch (err) {
     logError(`parseDocx:${filePath}`, err)
     return buildOutput({ filePath, stat, extNoDot, rawText: '', error: err.message })
@@ -66,23 +135,51 @@ async function parseDocx(filePath, stat, extNoDot) {
 }
 
 async function parsePdf(filePath, stat, extNoDot) {
+  let parser
   try {
-    const pdfParse = loadPdfParse()
+    const pdfParseModule = loadPdfParse()
+    const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule.default
+    if (typeof PDFParse !== 'function') {
+      throw new Error('pdf-parse PDFParse class not available — check installed version')
+    }
     const buf = fs.readFileSync(filePath)
-    const result = await pdfParse(buf)
+    parser = new PDFParse({ data: new Uint8Array(buf) })
+    const textResult = await parser.getText()
+    const fullText = textResult.text || (Array.isArray(textResult.pages) ? textResult.pages.map(p => p.text || '').join('\n') : '')
+
+    let pageCount = null
+    let title = null
+    let author = null
+    let created = null
+    try {
+      const info = await parser.getInfo()
+      pageCount = info?.numPages ?? info?.pageCount ?? null
+      const meta = info?.info || info?.metadata || info || {}
+      title = meta.Title || meta.title || null
+      author = meta.Author || meta.author || null
+      created = meta.CreationDate || meta.created || null
+    } catch (_) {}
+
+    const { rawText, visual_count, visual_cost_usd } = await attachVisuals(filePath, extNoDot, fullText)
     return buildOutput({
       filePath, stat, extNoDot,
-      rawText: result.text,
+      rawText,
       metadata: {
-        page_count: result.numpages,
-        title: result.info?.Title || null,
-        author: result.info?.Author || null,
-        created: result.info?.CreationDate || null,
+        page_count: pageCount,
+        title,
+        author,
+        created,
+        visual_count,
+        visual_cost_usd,
       },
     })
   } catch (err) {
     logError(`parsePdf:${filePath}`, err)
     return buildOutput({ filePath, stat, extNoDot, rawText: '', error: err.message })
+  } finally {
+    if (parser && typeof parser.destroy === 'function') {
+      try { await parser.destroy() } catch (_) {}
+    }
   }
 }
 
@@ -135,10 +232,12 @@ async function parsePptx(filePath, stat, extNoDot) {
       if (text.trim()) slides.push(text)
     }
 
+    const slideText = slides.join('\n\n')
+    const { rawText, visual_count, visual_cost_usd } = await attachVisuals(filePath, extNoDot, slideText)
     return buildOutput({
       filePath, stat, extNoDot,
-      rawText: slides.join('\n\n'),
-      metadata: { page_count: slideNames.length },
+      rawText,
+      metadata: { page_count: slideNames.length, visual_count, visual_cost_usd },
     })
   } catch (err) {
     logError(`parsePptx:${filePath}`, err)

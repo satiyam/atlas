@@ -3,8 +3,7 @@ const path = require('path')
 const crypto = require('crypto')
 
 const graphStore = require('../graph/graph_store')
-
-const AUDIT_LOG = path.join(__dirname, '../../logs/audit_log.jsonl')
+const { auditLogPath } = require('../collections/paths')
 
 const REFUSE_KEYWORDS = [
   'salary', 'compensation', 'bonus', 'pay band',
@@ -77,6 +76,19 @@ function graphRetriever(query) {
   }
 }
 
+async function embeddingRetriever(query, k = 15) {
+  try {
+    const embedClient = require('../embeddings/embed_client')
+    const vectorStore = require('../embeddings/vector_store')
+    const vector = await embedClient.embed(query)
+    if (!vector) return { chunks: [] }
+    const results = vectorStore.search(vector, { k, minScore: 0.15 })
+    return { chunks: results }
+  } catch (err) {
+    return { chunks: [], error: err.message }
+  }
+}
+
 async function gensparkRetriever(query) {
   const retrievedAt = new Date().toISOString()
   const apiKey = process.env.GENSPARK_API_KEY
@@ -108,7 +120,7 @@ async function gensparkRetriever(query) {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'sk-missing' })
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      max_tokens: 800,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{
         role: 'user',
@@ -149,9 +161,10 @@ function logRefusal(query, reason) {
     classification: 'REFUSE',
   }
   try {
-    const dir = path.dirname(AUDIT_LOG)
+    const target = auditLogPath()
+    const dir = path.dirname(target)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.appendFileSync(AUDIT_LOG, JSON.stringify(event) + '\n', 'utf8')
+    fs.appendFileSync(target, JSON.stringify(event) + '\n', 'utf8')
   } catch (_) {}
   return event
 }
@@ -185,10 +198,14 @@ async function routeQuery(query) {
   }
 
   if (classification === 'INTERNAL') {
-    const graphResult = graphRetriever(query)
+    const [graphResult, embeddingResult] = await Promise.all([
+      Promise.resolve(graphRetriever(query)),
+      embeddingRetriever(query),
+    ])
     return {
       classification,
       nodes: graphResult.nodes,
+      chunks: embeddingResult.chunks,
       keywords: graphResult.keywords,
       total_searched: graphResult.total_searched,
       genspark: null,
@@ -200,18 +217,21 @@ async function routeQuery(query) {
     return {
       classification,
       nodes: [],
+      chunks: [],
       genspark,
     }
   }
 
   // COMBINED
-  const [graphResult, genspark] = await Promise.all([
+  const [graphResult, embeddingResult, genspark] = await Promise.all([
     Promise.resolve(graphRetriever(query)),
+    embeddingRetriever(query),
     gensparkRetriever(query),
   ])
   return {
     classification,
     nodes: graphResult.nodes,
+    chunks: embeddingResult.chunks,
     keywords: graphResult.keywords,
     total_searched: graphResult.total_searched,
     genspark,
