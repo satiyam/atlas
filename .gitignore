@@ -6,3 +6,5 @@ graph/edges.json
 logs/delta_log.jsonl
 logs/audit_log.jsonl
 logs/ingestion_log.jsonl
+
+.claude/
