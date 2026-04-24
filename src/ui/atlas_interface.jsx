@@ -1390,3 +1390,151 @@ export default function AtlasInterface() {
     </div>
   )
 }
+
+function DebugPanel({ open, onClose }) {
+  const [activeTab, setActiveTab] = useState('logs')
+  const [logs, setLogs] = useState([])
+  const [summary, setSummary] = useState(null)
+  const esRef = React.useRef(null)
+
+  useEffect(() => {
+    if (!open) { esRef.current?.close(); return }
+    const es = new EventSource('http://localhost:3001/api/debug/stream')
+    esRef.current = es
+    es.addEventListener('log', e => {
+      const entry = JSON.parse(e.data)
+      setLogs(prev => { const n = [...prev, entry]; return n.length > 200 ? n.slice(-200) : n })
+    })
+    es.addEventListener('summary', e => setSummary(JSON.parse(e.data)))
+    es.addEventListener('ping', () => {})
+    return () => es.close()
+  }, [open])
+
+  const TYPE_COLOR = { ingest: '#639922', query: '#378ADD', synth: '#7F77DD', vision: '#EF9F27', conflict: '#1D9E75', error: '#E24B4A' }
+  const TYPE_LABEL = { ingest: 'INGEST', query: 'QUERY', synth: 'SYNTH', vision: 'VISION', conflict: 'CONFLICT', error: 'ERROR' }
+
+  if (!open) return null
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, width: 320, height: '100vh',
+      background: COLORS.panel, borderLeft: `1px solid ${COLORS.border}`,
+      display: 'flex', flexDirection: 'column', zIndex: 1000,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    }}>
+      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Debug</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {summary && <span style={{ fontSize: 11, color: COLORS.muted }}>${(summary.totalCostUsd || 0).toFixed(4)}</span>}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 2, padding: '8px 10px 0', flexShrink: 0 }}>
+        {['logs', 'tokens', 'settings'].map(t => (
+          <button key={t} onClick={() => setActiveTab(t)} style={{
+            fontSize: 12, padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            background: activeTab === t ? COLORS.bg : 'transparent',
+            color: activeTab === t ? COLORS.text : COLORS.muted,
+            fontWeight: activeTab === t ? 600 : 400, textTransform: 'capitalize',
+          }}>{t}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+        {activeTab === 'logs' && (
+          <>
+            {logs.length === 0 && <div style={{ fontSize: 12, color: COLORS.muted, textAlign: 'center', paddingTop: 32 }}>Waiting for API calls…</div>}
+            {[...logs].reverse().map(e => (
+              <div key={e.id} style={{
+                borderLeft: `2px solid ${TYPE_COLOR[e.type] || COLORS.border}`,
+                padding: '7px 10px', marginBottom: 6,
+                background: COLORS.bg, borderRadius: '0 6px 6px 0',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: TYPE_COLOR[e.type] || COLORS.muted }}>{TYPE_LABEL[e.type] || e.type?.toUpperCase()}</span>
+                  <span style={{ fontSize: 10, color: COLORS.muted }}>{e.timestamp ? new Date(e.timestamp).toTimeString().slice(0, 8) : ''}</span>
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.text, fontFamily: 'monospace', marginBottom: 3, wordBreak: 'break-all' }}>
+                  {(e.file || '').length > 45 ? '…' + (e.file || '').slice(-42) : (e.file || '')}
+                </div>
+                {(e.tokensIn > 0 || e.tokensOut > 0) && (
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 3 }}>
+                    {[['in', e.tokensIn], ['out', e.tokensOut]].map(([l, v]) => (
+                      <span key={l} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: COLORS.panel, color: COLORS.muted, border: `1px solid ${COLORS.border}` }}>
+                        {l} <span style={{ color: COLORS.text, fontWeight: 600 }}>{(v || 0).toLocaleString()}</span>
+                      </span>
+                    ))}
+                    {e.tokensCached > 0 && (
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: COLORS.panel, color: '#639922', border: `1px solid ${COLORS.border}` }}>
+                        cached <span style={{ fontWeight: 600 }}>{e.tokensCached.toLocaleString()}</span>
+                      </span>
+                    )}
+                    {e.costUsd > 0 && (
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: COLORS.panel, color: COLORS.muted, border: `1px solid ${COLORS.border}` }}>
+                        ${e.costUsd.toFixed(5)}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {e.model && <div style={{ fontSize: 10, color: COLORS.muted }}>{e.model} · {e.call}{e.durationMs > 0 ? ` · ${e.durationMs}ms` : ''}</div>}
+                {e.error && <div style={{ fontSize: 10, color: COLORS.red, marginTop: 3 }}>{e.error}</div>}
+              </div>
+            ))}
+            {logs.length > 0 && (
+              <button onClick={() => setLogs([])} style={{ width: '100%', marginTop: 4, fontSize: 11, padding: '5px', borderRadius: 6, border: `1px solid ${COLORS.border}`, background: 'transparent', color: COLORS.muted, cursor: 'pointer' }}>Clear</button>
+            )}
+          </>
+        )}
+
+        {activeTab === 'tokens' && (
+          <>
+            {!summary
+              ? <div style={{ fontSize: 12, color: COLORS.muted, paddingTop: 32, textAlign: 'center' }}>No data yet</div>
+              : (
+                <div style={{ background: COLORS.bg, borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.muted, marginBottom: 8 }}>Session breakdown</div>
+                  {[
+                    ['Haiku input',   summary.haikuIn,      null],
+                    ['Haiku output',  summary.haikuOut,     null],
+                    ['Haiku cached',  summary.haikuCached,  '#639922'],
+                    null,
+                    ['Sonnet input',  summary.sonnetIn,     null],
+                    ['Sonnet output', summary.sonnetOut,    null],
+                    null,
+                    ['Total tokens',  summary.totalTokens,  null],
+                    ['Est. cost',     `$${(summary.totalCostUsd || 0).toFixed(4)}`, null],
+                    ['Cache savings', `~$${(summary.cacheSavingsUsd || 0).toFixed(4)}`, '#639922'],
+                  ].map((row, i) =>
+                    row === null
+                      ? <hr key={i} style={{ border: 'none', borderTop: `1px solid ${COLORS.border}`, margin: '4px 0' }} />
+                      : <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 12 }}>
+                          <span style={{ color: COLORS.muted }}>{row[0]}</span>
+                          <span style={{ color: row[2] || COLORS.text, fontWeight: 500, fontFamily: 'monospace' }}>{typeof row[1] === 'number' ? (row[1] || 0).toLocaleString() : row[1]}</span>
+                        </div>
+                  )}
+                </div>
+              )
+            }
+          </>
+        )}
+
+        {activeTab === 'settings' && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.muted, marginBottom: 8 }}>Live Mode config</div>
+            {[
+              ['Watching', watcherStatus?.watching_path || 'not started'],
+              ['Status',   watcherStatus?.running ? '🟢 Running' : '⚫ Stopped'],
+              ['Queued',   watcherStatus?.queued ?? 0],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${COLORS.border}`, fontSize: 12 }}>
+                <span style={{ color: COLORS.muted }}>{label}</span>
+                <span style={{ color: COLORS.text, fontWeight: 500, fontFamily: 'monospace', maxWidth: 180, wordBreak: 'break-all', textAlign: 'right' }}>{String(val)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
