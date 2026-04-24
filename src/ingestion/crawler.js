@@ -2,7 +2,20 @@ const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 
-const CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
+const LEGACY_CONFIG_PATH = path.join(__dirname, '../../config/ingestion_config.json')
+const collectionManager = require('../collections/collection_manager')
+
+function resolveConfigPath() {
+  try {
+    const p = collectionManager.getActivePaths().configFile
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf8')
+      const parsed = JSON.parse(raw)
+      if (parsed && (parsed.supported_extensions || parsed.exclude_folders)) return p
+    }
+  } catch (_) {}
+  return LEGACY_CONFIG_PATH
+}
 
 const SENSITIVE_PATTERNS = [
   /payroll/i,
@@ -25,7 +38,7 @@ const SENSITIVE_PATTERNS = [
 ]
 
 function loadConfig() {
-  const raw = fs.readFileSync(CONFIG_PATH, 'utf8')
+  const raw = fs.readFileSync(resolveConfigPath(), 'utf8')
   return JSON.parse(raw)
 }
 

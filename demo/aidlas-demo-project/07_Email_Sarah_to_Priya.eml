@@ -1,0 +1,18 @@
+From: Sarah Chen <sarah.chen@temus.com>
+To: Priya Ramesh <priya.ramesh@temus.com>
+Subject: Architecture status — post-steering revisions
+Date: Thu, 19 Feb 2026 17:42:00 +0800
+Message-ID: <20260219-horizon-arch@temus.com>
+
+Hi Priya,
+
+Quick update before the Monday internal review.
+
+I've finished revising the architecture design document to reflect the 10 Feb steering committee decisions — four deliverables now, with the data-quality monitoring workload mapped onto a new silver-layer job set. DataCorp Cloud provisioning is complete and James is running the baseline ingestion tests this week.
+
+One concern: the 30 March target is tight with the added scope. If NorthWind changes their mind on data-quality monitoring (Jun has been ambivalent in our side-chats), I'd recommend we hold capacity to revert cleanly rather than committing further sunk cost. Worth a chat.
+
+Architecture v2 deck in the shared folder: 04_Architecture_Design_v2.pptx.
+
+Best,
+Sarah

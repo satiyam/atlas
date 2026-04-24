@@ -2,7 +2,8 @@
 const path = require('path')
 const Anthropic = require('@anthropic-ai/sdk')
 
-const SCHEMA_PATH = path.join(__dirname, '../../graph/schema.json')
+const collectionManager = require('../collections/collection_manager')
+const LEGACY_SCHEMA_PATH = path.join(__dirname, '../../graph/schema.json')
 const EXTRACTABLE_TYPES = ['PERSON', 'PROJECT', 'DECISION', 'DOCUMENT', 'MEETING', 'TOPIC']
 const VALID_RELATIONSHIPS = [
   'CONTRIBUTED_TO', 'MADE', 'AUTHORED', 'ATTENDED',
@@ -22,9 +23,10 @@ const GREETING_PATTERNS = [
   /^please\s+(find|see|note)/i,
 ]
 
-let _schema = null
+const _schemaByCollection = new Map()
+const _checksumCacheByCollection = new Map()
+const _ingestedChecksumsByCollection = new Map()
 let _client = null
-const _checksumCache = new Set()
 
 function getClient() {
   if (!_client) {
@@ -33,9 +35,28 @@ function getClient() {
   return _client
 }
 
+function currentCollectionId() {
+  try { return collectionManager.getActivePaths().id } catch (_) { return '__default__' }
+}
+
+function getChecksumCache() {
+  const id = currentCollectionId()
+  if (!_checksumCacheByCollection.has(id)) _checksumCacheByCollection.set(id, new Set())
+  return _checksumCacheByCollection.get(id)
+}
+
+function resolveSchemaPath() {
+  try {
+    const p = collectionManager.getActivePaths().schemaFile
+    if (fs.existsSync(p)) return p
+  } catch (_) {}
+  return LEGACY_SCHEMA_PATH
+}
+
 function loadSchema() {
-  if (_schema) return _schema
-  const raw = fs.readFileSync(SCHEMA_PATH, 'utf8')
+  const id = currentCollectionId()
+  if (_schemaByCollection.has(id)) return _schemaByCollection.get(id)
+  const raw = fs.readFileSync(resolveSchemaPath(), 'utf8')
   const parsed = JSON.parse(raw)
   if (!parsed.entities) throw new Error('Invalid schema: missing "entities" key')
 
@@ -45,13 +66,33 @@ function loadSchema() {
     }
   }
 
-  _schema = parsed
-  return _schema
+  _schemaByCollection.set(id, parsed)
+  return parsed
+}
+
+function loadIngestedChecksums() {
+  const id = currentCollectionId()
+  if (_ingestedChecksumsByCollection.has(id)) return _ingestedChecksumsByCollection.get(id)
+  const set = new Set()
+  try {
+    const graphStore = require('../graph/graph_store')
+    const nodes = graphStore.readNodes()
+    for (const node of Object.values(nodes)) {
+      if (node && node.checksum) set.add(node.checksum)
+    }
+  } catch (_) {}
+  _ingestedChecksumsByCollection.set(id, set)
+  return set
+}
+
+function invalidateIngestedChecksums() {
+  _ingestedChecksumsByCollection.clear()
 }
 
 function _resetSchemaCacheForTests() {
-  _schema = null
-  _checksumCache.clear()
+  _schemaByCollection.clear()
+  _checksumCacheByCollection.clear()
+  _ingestedChecksumsByCollection.clear()
 }
 
 function countWords(s) {
@@ -63,7 +104,8 @@ function filterSignal(content, checksum = null) {
     return { isSignal: false, reason: 'empty content' }
   }
 
-  if (checksum && _checksumCache.has(checksum)) {
+  const cache = getChecksumCache()
+  if (checksum && cache.has(checksum)) {
     return { isSignal: false, reason: 'duplicate checksum' }
   }
 
@@ -85,7 +127,7 @@ function filterSignal(content, checksum = null) {
   const hasMeeting = MEETING_KEYWORDS.some(k => lower.includes(k))
 
   if (hasDecision || hasProject || hasAction || hasMeeting) {
-    if (checksum) _checksumCache.add(checksum)
+    if (checksum) cache.add(checksum)
     return {
       isSignal: true,
       reason: 'signal detected',
@@ -115,71 +157,145 @@ function extractJsonBlock(text) {
   if (start !== -1 && end > start) {
     try { return JSON.parse(text.slice(start, end + 1)) } catch (_) {}
   }
+  // Assistant prefill case: response starts without the leading "{".
+  const trimmed = text.trim()
+  if (trimmed && !trimmed.startsWith('{')) {
+    const candidate = '{' + trimmed
+    const candidateEnd = candidate.lastIndexOf('}')
+    if (candidateEnd > 0) {
+      try { return JSON.parse(candidate.slice(0, candidateEnd + 1)) } catch (_) {}
+    }
+  }
   return null
+}
+
+const EXTRACTION_MODEL = 'claude-haiku-4-5-20251001'
+const EXTRACTION_MAX_TOKENS = 4000
+const EXTRACTION_CONCURRENCY = parseInt(process.env.ATLAS_EXTRACTION_CONCURRENCY, 10) || 2
+const MAX_RATE_LIMIT_RETRIES = 4
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 45000
+const MAX_BACKOFF_MS = 120000
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+function jitter(ms) { return ms + Math.floor(Math.random() * 2000) }
+
+function parseRetryAfter(err) {
+  try {
+    const headers = err?.response?.headers || err?.headers
+    const raw = headers?.get ? headers.get('retry-after') : headers?.['retry-after']
+    if (!raw) return null
+    const secs = parseFloat(raw)
+    if (Number.isFinite(secs) && secs > 0) return Math.min(120000, Math.round(secs * 1000))
+  } catch (_) {}
+  return null
+}
+
+async function callClaudeWithRetry({ system, user }) {
+  const client = getClient()
+  let attempt = 0
+  while (true) {
+    try {
+      return await client.messages.create({
+        model: EXTRACTION_MODEL,
+        max_tokens: EXTRACTION_MAX_TOKENS,
+        system: [
+          { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
+        ],
+        messages: [
+          { role: 'user', content: user },
+          { role: 'assistant', content: '{' },
+        ],
+      })
+    } catch (err) {
+      const status = err?.status || err?.response?.status
+      const isRateLimit = status === 429
+      if (!isRateLimit || attempt >= MAX_RATE_LIMIT_RETRIES) throw err
+      const base = parseRetryAfter(err) ?? Math.min(MAX_BACKOFF_MS, DEFAULT_RATE_LIMIT_BACKOFF_MS * Math.pow(2, attempt))
+      const wait = jitter(base)
+      console.log(`[entity_extractor] 429 rate-limited; sleeping ${wait}ms before retry ${attempt + 1}/${MAX_RATE_LIMIT_RETRIES}`)
+      await sleep(wait)
+      attempt++
+    }
+  }
 }
 
 async function extractEntities(parsedFile) {
   const schema = loadSchema()
   const content = parsedFile?.raw_text || ''
-  const signal = filterSignal(content, parsedFile?.checksum)
+  const checksum = parsedFile?.checksum || null
+  const sourceFile = parsedFile?.file_path
 
-  if (!signal.isSignal) {
+  if (checksum) {
+    const already = loadIngestedChecksums()
+    if (already.has(checksum)) {
+      return {
+        nodes: [],
+        edges: [],
+        source_file: sourceFile,
+        checksum,
+        skipped_by_checksum: true,
+      }
+    }
+  }
+
+  if (!content || !content.trim()) {
     return null
   }
 
-  const sourceFile = parsedFile.file_path
-  const checksum = parsedFile.checksum
   const ingestedAt = new Date().toISOString()
   const snippet = content.slice(0, 6000)
 
-  const prompt = `You are an entity extractor for a knowledge graph.
-Extract entities from this content following the schema.
+  const systemPrompt = `You are an entity extractor for a knowledge graph.
+Extract entities from the provided content following the schema below.
 
 Schema: ${JSON.stringify(schema)}
 
-Content: ${snippet}
-Source file: ${sourceFile}
+Return ONLY a raw JSON object — do NOT wrap it in markdown fences (no \`\`\`json), do not prefix or suffix any prose, start directly with { and end with }.
 
-Return ONLY a JSON object:
+Shape:
 {
   "nodes": [
-    {
-      "id": "unique_id",
-      "type": "PERSON|PROJECT|DECISION|DOCUMENT|MEETING|TOPIC",
-      "attributes": { ...type-specific fields },
-      "source_file": "${sourceFile}",
-      "ingested_at": "${ingestedAt}",
-      "checksum": "${checksum}"
-    }
+    { "id": "unique_id", "type": "PERSON|PROJECT|DECISION|DOCUMENT|MEETING|TOPIC", "attributes": { ...type-specific fields } }
   ],
   "edges": [
-    {
-      "source_id": "node_id",
-      "target_id": "node_id",
-      "relationship_type": "CONTRIBUTED_TO|MADE|AUTHORED|ATTENDED|REFERENCES|PRODUCED|CONTAINS|INCLUDES|TAGS"
-    }
+    { "source_id": "node_id", "target_id": "node_id", "relationship_type": "CONTRIBUTED_TO|MADE|AUTHORED|ATTENDED|REFERENCES|PRODUCED|CONTAINS|INCLUDES|TAGS" }
   ]
 }
 
 Rules:
-- Only extract entities clearly present in the content
-- Generate deterministic ids: type_slug_of_name (e.g. person_sarah_chen, project_phoenix)
-- Do not invent information not in the content
-- Return empty nodes/edges arrays if nothing found`
+- Only extract entities clearly present in the content.
+- Generate deterministic ids: type_slug_of_name (e.g. person_sarah_chen, project_phoenix).
+- Do not invent information not in the content.
+- Return empty nodes/edges arrays if nothing found.
+- Keep attributes concise — names, roles, short summaries only. Skip long descriptions, emails, phone numbers.
+- If you are close to the token limit, stop at a clean closing } — prefer fewer complete entities over a truncated response.
+- The caller attaches source_file, ingested_at, and checksum — omit them from your output.`
+
+  const userPrompt = `Source file: ${sourceFile}
+
+Content:
+${snippet}`
 
   try {
-    const client = getClient()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2500,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await callClaudeWithRetry({
+      system: systemPrompt,
+      user: userPrompt,
     })
 
     const text = response?.content?.[0]?.text || ''
     const parsed = extractJsonBlock(text)
 
     if (!parsed || !Array.isArray(parsed.nodes)) {
-      return { nodes: [], edges: [], source_file: sourceFile, checksum, parse_error: 'could not parse JSON response' }
+      const preview = (text || '').slice(0, 400).replace(/\s+/g, ' ')
+      console.log(`[entity_extractor] parse_error for ${sourceFile} — Haiku response preview: ${preview || '(empty)'}`)
+      return {
+        nodes: [],
+        edges: [],
+        source_file: sourceFile,
+        checksum,
+        parse_error: 'could not parse JSON response',
+        raw_preview: preview || null,
+      }
     }
 
     const nodes = parsed.nodes.map(n => ({
@@ -207,10 +323,22 @@ Rules:
 
 async function extractBatch(redactedFiles) {
   loadSchema()
-  const promises = (redactedFiles || []).map(f => extractEntities(f).catch(err => ({
-    nodes: [], edges: [], source_file: f?.file_path, api_error: err.message,
-  })))
-  const results = await Promise.all(promises)
+  invalidateIngestedChecksums()
+  const files = (redactedFiles || []).filter(Boolean)
+  const results = new Array(files.length)
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, files.length) }, async () => {
+    while (true) {
+      const i = cursor++
+      if (i >= files.length) return
+      try {
+        results[i] = await extractEntities(files[i])
+      } catch (err) {
+        results[i] = { nodes: [], edges: [], source_file: files[i]?.file_path, api_error: err.message }
+      }
+    }
+  })
+  await Promise.all(workers)
   return results.filter(r => r !== null)
 }
 

@@ -2,18 +2,18 @@
 const path = require('path')
 const Anthropic = require('@anthropic-ai/sdk')
 
-const VISION_MODEL = 'claude-sonnet-4-6'
-const MAX_TOKENS = 1024
+const VISION_MODEL = 'claude-haiku-4-5-20251001'
+const MAX_TOKENS = 400
 const DEFAULT_CONCURRENCY = 3
 
-const VISION_PROMPT = `Analyse this image and extract all information relevant to organisational knowledge. Focus on:
-- Any text visible in the image
-- Decisions, outcomes, or conclusions shown
-- People, roles, or team names referenced
-- Project names, dates, or timelines
-- Charts, diagrams, or process flows
+const VISION_PROMPT = `Extract organisational knowledge from this image. Cover only what is actually present:
+- Visible text
+- Decisions, outcomes, conclusions
+- People, roles, team names
+- Project names, dates, timelines
+- Chart/diagram/process-flow content
 - Action items or next steps
-Return a structured description covering all of the above that are present.`
+Be concise — one short paragraph or a tight bulleted list. Skip sections that don't apply.`
 
 let _client = null
 function getClient() {
@@ -23,9 +23,13 @@ function getClient() {
   return _client
 }
 
+const { auditLogPath } = require('../collections/paths')
+
 function logError(context, err) {
   try {
-    const logPath = path.join(__dirname, '../../logs/audit_log.jsonl')
+    const logPath = auditLogPath()
+    const dir = path.dirname(logPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     const line = JSON.stringify({
       event: 'IMAGE_DESCRIPTION_ERROR',
       context,
@@ -43,16 +47,16 @@ function detectMediaType(imagePath) {
   return 'image/png'
 }
 
-async function describeImage(imagePath) {
+async function describeImageBuffer(buffer, mediaType, contextLabel = 'buffer') {
   try {
-    const buffer = fs.readFileSync(imagePath)
-    const base64Data = buffer.toString('base64')
-    const mediaType = detectMediaType(imagePath)
-
+    const base64Data = Buffer.from(buffer).toString('base64')
     const client = getClient()
     const response = await client.messages.create({
       model: VISION_MODEL,
       max_tokens: MAX_TOKENS,
+      system: [
+        { type: 'text', text: VISION_PROMPT, cache_control: { type: 'ephemeral' } },
+      ],
       messages: [{
         role: 'user',
         content: [
@@ -60,21 +64,23 @@ async function describeImage(imagePath) {
             type: 'image',
             source: { type: 'base64', media_type: mediaType, data: base64Data },
           },
-          {
-            type: 'text',
-            text: VISION_PROMPT,
-          },
         ],
       }],
     })
-
     const description = response?.content?.[0]?.text || ''
+    return { description, described_at: new Date().toISOString() }
+  } catch (err) {
+    logError(`describeImageBuffer:${contextLabel}`, err)
+    return { description: '', described_at: new Date().toISOString(), error: err.message }
+  }
+}
 
-    return {
-      description,
-      image_path: imagePath,
-      described_at: new Date().toISOString(),
-    }
+async function describeImage(imagePath) {
+  try {
+    const buffer = fs.readFileSync(imagePath)
+    const mediaType = detectMediaType(imagePath)
+    const result = await describeImageBuffer(buffer, mediaType, imagePath)
+    return { ...result, image_path: imagePath }
   } catch (err) {
     logError(`describeImage:${imagePath}`, err)
     return {
@@ -98,6 +104,7 @@ async function describeBatch(imagePaths, concurrency = DEFAULT_CONCURRENCY) {
 
 module.exports = {
   describeImage,
+  describeImageBuffer,
   describeBatch,
   detectMediaType,
   VISION_MODEL,

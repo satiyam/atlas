@@ -1,25 +1,31 @@
 const fs = require('fs')
 const path = require('path')
 
-const DELTA_LOG = path.join(__dirname, '../../logs/delta_log.jsonl')
+const collectionManager = require('../collections/collection_manager')
+
+function deltaLogPath() {
+  return collectionManager.getActivePaths().deltaLog
+}
 
 function ensureLogFile() {
-  const dir = path.dirname(DELTA_LOG)
+  const file = deltaLogPath()
+  const dir = path.dirname(file)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(DELTA_LOG)) fs.writeFileSync(DELTA_LOG, '', 'utf8')
+  if (!fs.existsSync(file)) fs.writeFileSync(file, '', 'utf8')
+  return file
 }
 
 function appendEvent(event) {
-  ensureLogFile()
+  const file = ensureLogFile()
   event.id = event.id || ('evt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
   event.timestamp = event.timestamp || new Date().toISOString()
-  fs.appendFileSync(DELTA_LOG, JSON.stringify(event) + '\n', 'utf8')
+  fs.appendFileSync(file, JSON.stringify(event) + '\n', 'utf8')
   return event
 }
 
 function readAllEvents() {
-  ensureLogFile()
-  const raw = fs.readFileSync(DELTA_LOG, 'utf8')
+  const file = ensureLogFile()
+  const raw = fs.readFileSync(file, 'utf8')
   if (!raw.trim()) return []
   return raw.split('\n').filter(Boolean).map(line => {
     try { return JSON.parse(line) } catch (_) { return null }
@@ -51,7 +57,7 @@ function writeCheckpoint() {
 }
 
 function _resetForTests() {
-  try { fs.writeFileSync(DELTA_LOG, '', 'utf8') } catch (_) {}
+  try { fs.writeFileSync(deltaLogPath(), '', 'utf8') } catch (_) {}
 }
 
 module.exports = {
@@ -60,6 +66,5 @@ module.exports = {
   getEventsSince,
   writeCheckpoint,
   readAllEvents,
-  DELTA_LOG,
   _resetForTests,
 }

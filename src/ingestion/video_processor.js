@@ -14,9 +14,13 @@ function isVideoFile(extension) {
   return VIDEO_EXTENSIONS.has(normalized)
 }
 
+const { auditLogPath } = require('../collections/paths')
+
 function logError(context, err) {
   try {
-    const logPath = path.join(__dirname, '../../logs/audit_log.jsonl')
+    const logPath = auditLogPath()
+    const dir = path.dirname(logPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     const line = JSON.stringify({
       event: 'VIDEO_PROCESSING_ERROR',
       context,

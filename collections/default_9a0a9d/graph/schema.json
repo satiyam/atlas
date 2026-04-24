@@ -1,0 +1,150 @@
+{
+  "_meta": {
+    "version": "0.4",
+    "description": "Atlas knowledge graph entity schema — SINGLE SOURCE OF TRUTH. Load at runtime before every extraction or query operation. Never duplicate or hardcode in application code.",
+    "last_updated": "2026-04-22",
+    "entity_count": 8
+  },
+  "entities": {
+    "PERSON": {
+      "description": "A person mentioned across ingested documents, meetings, emails, or transcripts.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "name": { "type": "string", "required": true },
+        "role": { "type": "string", "required": false },
+        "team": { "type": "string", "required": false },
+        "email": { "type": "string", "format": "email", "required": false },
+        "expertise_tags": { "type": "array", "items": "string", "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "source_file": { "type": "string", "description": "Originating file path", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of source content at ingestion time", "required": true }
+      }
+    },
+    "PROJECT": {
+      "description": "A project, initiative, workstream, or programme mentioned in documents.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "name": { "type": "string", "required": true },
+        "status": { "type": "string", "enum": ["active", "completed", "paused", "cancelled", "planned"], "required": false },
+        "start_date": { "type": "string", "format": "date", "required": false },
+        "end_date": { "type": "string", "format": "date", "required": false },
+        "owner_id": { "type": "string", "format": "uuid", "fk": "PERSON.id", "required": false },
+        "description": { "type": "string", "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "source_file": { "type": "string", "description": "Originating file path", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of source content at ingestion time", "required": true }
+      }
+    },
+    "DECISION": {
+      "description": "A decision made, captured from documents, emails, or meeting transcripts.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "summary": { "type": "string", "required": true },
+        "date": { "type": "string", "format": "datetime", "required": false },
+        "context": { "type": "string", "description": "Background and rationale for the decision", "required": false },
+        "outcome": { "type": "string", "required": false },
+        "made_by": { "type": "array", "items": { "type": "string", "format": "uuid", "fk": "PERSON.id" }, "required": false },
+        "references_doc": { "type": "array", "items": { "type": "string", "format": "uuid", "fk": "DOCUMENT.id" }, "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "source_file": { "type": "string", "description": "Originating file path", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of source content at ingestion time", "required": true }
+      }
+    },
+    "DOCUMENT": {
+      "description": "A document node representing a parsed file in the knowledge graph.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "title": { "type": "string", "required": true },
+        "file_type": { "type": "string", "description": "File extension e.g. .docx, .pdf, .mp4", "required": true },
+        "file_path": { "type": "string", "description": "Absolute path to source file", "required": true },
+        "author_id": { "type": "string", "format": "uuid", "fk": "PERSON.id", "required": false },
+        "version": { "type": "string", "required": false },
+        "summary": { "type": "string", "required": false },
+        "last_modified": { "type": "string", "format": "datetime", "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of file content at ingestion time", "required": true }
+      }
+    },
+    "MEETING": {
+      "description": "A meeting captured from calendar exports, email threads, VTT/SRT transcripts, or audio/video recordings.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "title": { "type": "string", "required": false },
+        "date": { "type": "string", "format": "datetime", "required": false },
+        "duration_minutes": { "type": "number", "required": false },
+        "attendee_ids": { "type": "array", "items": { "type": "string", "format": "uuid", "fk": "PERSON.id" }, "required": false },
+        "decision_ids": { "type": "array", "items": { "type": "string", "format": "uuid", "fk": "DECISION.id" }, "required": false },
+        "action_items": { "type": "array", "items": "string", "required": false },
+        "recording_file": { "type": "string", "description": "Path to audio/video file if available", "required": false },
+        "transcript_file": { "type": "string", "description": "Path to VTT/SRT transcript if available", "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of source content at ingestion time", "required": true }
+      }
+    },
+    "TOPIC": {
+      "description": "A thematic tag or subject area linking multiple entities across the graph.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "label": { "type": "string", "required": true },
+        "description": { "type": "string", "required": false },
+        "related_entity_ids": { "type": "array", "items": "string", "description": "IDs of any entity type tagged with this topic", "required": false },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true }
+      }
+    },
+    "FILE_SOURCE": {
+      "description": "Metadata record for every file processed by Atlas. Created during crawl, updated on each ingestion run.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "path": { "type": "string", "description": "Absolute file path", "required": true },
+        "filename": { "type": "string", "required": true },
+        "file_type": { "type": "string", "description": "File extension", "required": true },
+        "size_bytes": { "type": "number", "required": true },
+        "last_modified": { "type": "string", "format": "datetime", "required": true },
+        "ingested_at": { "type": "string", "format": "datetime", "required": true },
+        "checksum": { "type": "string", "description": "SHA-256 of file content at last ingestion", "required": true },
+        "ingestion_status": { "type": "string", "enum": ["pending", "processing", "complete", "skipped", "error", "purged"], "required": true },
+        "transcription_id": { "type": "string", "description": "OpenAI transcription job ID for audio/video files", "required": false },
+        "transcription_cost_usd": { "type": "number", "description": "Cost in USD for Whisper API transcription", "required": false },
+        "error_message": { "type": "string", "required": false }
+      }
+    },
+    "DELTA_EVENT": {
+      "description": "A CDC (Change Data Capture) event recording every mutation to the knowledge graph. Appended to logs/delta_log.jsonl — never modified.",
+      "fields": {
+        "id": { "type": "string", "format": "uuid", "required": true, "pk": true },
+        "event_type": {
+          "type": "string",
+          "enum": ["NODE_CREATED", "NODE_UPDATED", "EDGE_CREATED", "EDGE_UPDATED", "PURGE", "SYNC_CHECKPOINT"],
+          "required": true
+        },
+        "entity_type": { "type": "string", "description": "Entity type affected e.g. PERSON, PROJECT", "required": false },
+        "entity_id": { "type": "string", "description": "ID of the affected entity", "required": false },
+        "operation": { "type": "string", "description": "Description of the operation performed", "required": false },
+        "payload": { "type": "object", "description": "Before/after snapshot or operation details", "required": false },
+        "cursor": { "type": "string", "format": "datetime", "description": "Ingestion cursor timestamp at time of event", "required": true },
+        "timestamp": { "type": "string", "format": "datetime", "required": true },
+        "triggered_by": { "type": "string", "description": "Source file path or system process that triggered the event", "required": false }
+      }
+    }
+  },
+  "relationships": [
+    { "from": "PERSON", "to": "PROJECT", "type": "CONTRIBUTED_TO", "cardinality": "many-to-many" },
+    { "from": "PERSON", "to": "DECISION", "type": "MADE", "cardinality": "many-to-many" },
+    { "from": "PERSON", "to": "DOCUMENT", "type": "AUTHORED", "cardinality": "many-to-many" },
+    { "from": "PERSON", "to": "MEETING", "type": "ATTENDED", "cardinality": "many-to-many" },
+    { "from": "DECISION", "to": "DOCUMENT", "type": "REFERENCES", "cardinality": "many-to-many" },
+    { "from": "MEETING", "to": "DECISION", "type": "PRODUCED", "cardinality": "one-to-many" },
+    { "from": "PROJECT", "to": "DOCUMENT", "type": "CONTAINS", "cardinality": "one-to-many" },
+    { "from": "PROJECT", "to": "MEETING", "type": "INCLUDES", "cardinality": "one-to-many" },
+    { "from": "TOPIC", "to": "PERSON", "type": "TAGS", "cardinality": "many-to-many" },
+    { "from": "TOPIC", "to": "PROJECT", "type": "TAGS", "cardinality": "many-to-many" },
+    { "from": "TOPIC", "to": "DECISION", "type": "TAGS", "cardinality": "many-to-many" },
+    { "from": "FILE_SOURCE", "to": "DOCUMENT", "type": "PRODUCED", "cardinality": "one-to-many" },
+    { "from": "FILE_SOURCE", "to": "DECISION", "type": "PRODUCED", "cardinality": "one-to-many" },
+    { "from": "FILE_SOURCE", "to": "MEETING", "type": "PRODUCED", "cardinality": "one-to-many" },
+    { "from": "DELTA_EVENT", "to": "FILE_SOURCE", "type": "TRACKS", "cardinality": "many-to-one" },
+    { "from": "DELTA_EVENT", "to": "PERSON", "type": "TRACKS", "cardinality": "many-to-one" },
+    { "from": "DELTA_EVENT", "to": "DOCUMENT", "type": "TRACKS", "cardinality": "many-to-one" },
+    { "from": "DELTA_EVENT", "to": "DECISION", "type": "TRACKS", "cardinality": "many-to-one" }
+  ]
+}
